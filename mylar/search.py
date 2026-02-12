@@ -1584,6 +1584,7 @@ def searchforissue(issueid=None, new=False, rsschecker=None, manual=False):
             [
                 mylar.CONFIG.ENABLE_GETCOMICS is True,
                 mylar.CONFIG.ENABLE_EXTERNAL_SERVER is True,
+                mylar.CONFIG.ENABLE_EASYNEWS is True,
             ]
        ))
        or mylar.CONFIG.ENABLE_AIRDCPP is True
@@ -2052,6 +2053,7 @@ def searchforissue(issueid=None, new=False, rsschecker=None, manual=False):
                             mylar.CONFIG.EXPERIMENTAL is True,
                             mylar.CONFIG.ENABLE_GETCOMICS is True,
                             mylar.CONFIG.ENABLE_EXTERNAL_SERVER is True,
+                            mylar.CONFIG.ENABLE_EASYNEWS is True,
                         ]
                     )
                     or all([mylar.CONFIG.NEWZNAB is True, len(ens) > 0])
@@ -2557,6 +2559,7 @@ def searchIssueIDList(issuelist):
             [
                 mylar.CONFIG.ENABLE_GETCOMICS is True,
                 mylar.CONFIG.ENABLE_EXTERNAL_SERVER is True,
+                mylar.CONFIG.ENABLE_EASYNEWS is True,
             ]
         )
         ) or mylar.CONFIG.ENABLE_AIRDCPP is True
