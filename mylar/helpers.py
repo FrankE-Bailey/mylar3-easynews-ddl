@@ -4869,6 +4869,10 @@ def check_file_condition(file_path):
                 test_result = rarf.testrar()
                 if test_result is not None:
                     return {'status': False, 'type' : 'RAR', 'quality': f'CRC error in file {test_result}.'}
+        except rarfile.RarCannotExec as e:
+            # No unrar/rar tool available - accept file without CRC verification
+            logger.fdebug("RAR tool not available; accepting file without CRC check: %s" % (e,))
+            return {'status': True, 'type': 'RAR', 'quality': 'RAR file; CRC not verified (no unrar tool).'}
         except Exception as e:
             logger.fdebug("Issue working with rar file.  Likely a broken archive.")
             return {'status': False, 'type' : 'RAR', 'quality': f'Error processing rar compressed file: {e}.'}

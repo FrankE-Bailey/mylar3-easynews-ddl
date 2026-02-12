@@ -21,6 +21,7 @@ import re
 import time
 import datetime
 import zipfile
+from urllib.parse import quote
 import mylar
 from mylar import db, logger, helpers, search_filer
 
@@ -49,21 +50,75 @@ class Easynews(object):
 
         self.search_format = ['"%s #%s (%s)"', '%s #%s (%s)', '%s #%s', '%s %s']
 
+    def _search_comicname(self, raw_name):
+        """Normalize comic name for Easynews search: / -> ' vs ', : -> ' - ' so
+        'Aliens/Predator: The Deadliest' matches files named 'Aliens vs. Predator - The Deadliest'.
+        """
+        name = re.sub(r'\s*/\s*', ' vs ', raw_name, flags=re.I)
+        name = re.sub(r'\s*:\s*', ' - ', name)
+        return re.sub(r'\s+', ' ', name).strip()
+
+    def _fallback_comicname(self, raw_name):
+        """Strip / : vs. - for fallback query so we try 'Aliens Predator The Deadliest'."""
+        name = re.sub(r'\s*/\s*', ' ', raw_name, flags=re.I)
+        name = re.sub(r'\s*:\s*', ' ', name)
+        name = re.sub(r'\s*vs\.?\s*', ' ', name, flags=re.I)
+        name = re.sub(r'\s*-\s*', ' ', name)
+        return re.sub(r'\s+', ' ', name).strip()
+
+    def _minimal_query_string(self):
+        """Build minimal Easynews query: key words only + two-digit issue, no year/special chars.
+        E.g. 'Aliens/Predator: The Deadliest of the Species' + issue 2 -> 'Aliens Predator Deadliest Species 02'
+        """
+        raw = self.query.get('comicname') or ''
+        issue = self.query.get('issue')
+        if issue is None or str(issue).strip() in ('', 'None'):
+            return None
+        raw_issue = str(issue).strip()
+        if not raw_issue.isdigit():
+            return None
+        iss = raw_issue.zfill(2) if len(raw_issue) <= 2 else raw_issue
+        name = re.sub(r'[\:\/\-]', ' ', raw, flags=re.I)
+        name = re.sub(r'\s+', ' ', name).strip()
+        stop = re.compile(r'\b(the|of|and|vs\.?|a|an)\b', re.I)
+        name = stop.sub(' ', name)
+        name = re.sub(r'\s+', ' ', name).strip()
+        if not name:
+            return None
+        return '%s %s' % (name, iss)
+
     def search(self, is_info=None):
         try:
-            if is_info is not None:
+            comicname_for_query = self._search_comicname(self.query['comicname'])
+            verified_matches = []
+
+            # Try minimal query first (key words + two-digit issue, no year/special chars)
+            minimal = self._minimal_query_string()
+            if minimal:
+                logger.fdebug('[DDL(Easynews)-QUERY] Query set to: %s (minimal, first)' % minimal)
+                result_generator = self.perform_search_queries(minimal)
+                sfs = search_filer.search_check()
+                match = sfs.check_for_first_result(
+                    result_generator, is_info, prefer_pack=False
+                )
+                if match is not None:
+                    verified_matches = [match]
+                    logger.fdebug('[DDL(Easynews)] verified_matches (minimal): %s' % (verified_matches,))
+
+            if is_info is not None and not verified_matches:
                 if is_info['chktpb'] == 0:
                     logger.debug('[DDL(Easynews)] removing query from loop that accounts for no issue number')
                 else:
-                    self.search_format.insert(0, self.query['comicname'])
+                    self.search_format.insert(0, comicname_for_query)
                     logger.debug('[DDL(Easynews)] setting no issue number query to be first due to no issue number')
 
             for sf in self.search_format:
-                verified_matches = []
+                if verified_matches:
+                    break
                 sf_issue = self.query['issue']
 
-                if is_info['chktpb'] == 1 and self.query['comicname'] == sf:
-                    comicname = re.sub(r'[\&\:\?\,\/\-]', '', self.query['comicname'])
+                if is_info is not None and is_info['chktpb'] == 1 and self.query['comicname'] == sf:
+                    comicname = re.sub(r'[\&\:\?\,\/\-]', '', comicname_for_query)
                     comicname = re.sub("\\band\\b", '', comicname, flags=re.I)
                     comicname = re.sub("\\bthe\\b", '', comicname, flags=re.I)
                     queryline = re.sub(r'\s+', ' ', comicname)
@@ -74,19 +129,19 @@ class Easynews(object):
                         if sf_issue is None:
                             splits = sf.split(' ')
                             splits.pop(1)
-                            queryline = ' '.join(splits) % (self.query['comicname'], self.query['year'])
+                            queryline = ' '.join(splits) % (comicname_for_query, self.query['year'])
                         else:
-                            queryline = sf % (self.query['comicname'], sf_issue, self.query['year'])
+                            queryline = sf % (comicname_for_query, sf_issue, self.query['year'])
                     else:
                         sf_count = len([m.start() for m in re.finditer('(?=%s)', sf)])
                         if sf_count == 0:
                             queryline = sf
                         elif sf_count == 2:
-                            queryline = sf % (self.query['comicname'], sf_issue)
+                            queryline = sf % (comicname_for_query, sf_issue)
                         elif sf_count == 3:
-                            queryline = sf % (self.query['comicname'], sf_issue, self.query['year'])
+                            queryline = sf % (comicname_for_query, sf_issue, self.query['year'])
                         else:
-                            queryline = sf % (self.query['comicname'])
+                            queryline = sf % (comicname_for_query)
 
                 if not queryline:
                     continue
@@ -105,13 +160,10 @@ class Easynews(object):
                 logger.fdebug('[DDL(Easynews)] sleep...%s%s' % (mylar.CONFIG.DDL_QUERY_DELAY, 's'))
                 time.sleep(mylar.CONFIG.DDL_QUERY_DELAY)
 
-            # Fallback: try normalized title (e.g. "Aliens Predator ..." for "Aliens vs. Predator ...")
-            # so we find files named without "vs." or with different punctuation
+            # Fallback: try stripped title (e.g. "Aliens Predator ..." for "Aliens/Predator: ..." or "Aliens vs. Predator ...")
             if not verified_matches and is_info is not None:
-                normalized_name = re.sub(r'\s*vs\.?\s*', ' ', self.query['comicname'], flags=re.I)
-                normalized_name = re.sub(r'\s*-\s*', ' ', normalized_name)
-                normalized_name = re.sub(r'\s+', ' ', normalized_name).strip()
-                if normalized_name != self.query['comicname']:
+                normalized_name = self._fallback_comicname(self.query['comicname'])
+                if normalized_name != comicname_for_query:
                     for fmt in ['%s #%s', '%s %s']:
                         sf_issue = self.query['issue']
                         if any([self.query['issue'] == 'None', self.query['issue'] is None]):
@@ -133,6 +185,49 @@ class Easynews(object):
                             logger.fdebug('[DDL(Easynews)] verified_matches (normalized query): %s' % (verified_matches,))
                             break
                         time.sleep(mylar.CONFIG.DDL_QUERY_DELAY)
+
+            # Fallback: try zero-padded issue (e.g. 01 vs 1) to match filenames like "title 01.cbr"
+            if not verified_matches and is_info is not None:
+                raw_issue = self.query.get('issue')
+                if raw_issue and str(raw_issue).isdigit() and len(str(raw_issue)) <= 2:
+                    padded = str(raw_issue).zfill(2)
+                    if padded != str(raw_issue):
+                        for name in (comicname_for_query, self._fallback_comicname(self.query['comicname'])):
+                            for queryline in ['%s %s' % (name, padded), '%s #%s' % (name, padded)]:
+                                logger.fdebug('[DDL(Easynews)-QUERY] Fallback query (zero-pad issue): %s' % queryline)
+                                result_generator = self.perform_search_queries(queryline)
+                                sfs = search_filer.search_check()
+                                match = sfs.check_for_first_result(
+                                    result_generator, is_info, prefer_pack=False
+                                )
+                                if match is not None:
+                                    verified_matches = [match]
+                                    logger.fdebug('[DDL(Easynews)] verified_matches (zero-pad): %s' % (verified_matches,))
+                                    break
+                                time.sleep(mylar.CONFIG.DDL_QUERY_DELAY)
+                            if verified_matches:
+                                break
+
+            # Fallback: minimal keyword query (first 2 words + issue) in case long AND query fails
+            if not verified_matches and is_info is not None:
+                raw_issue = self.query.get('issue')
+                if raw_issue and str(raw_issue).isdigit():
+                    iss = str(raw_issue).zfill(2) if len(str(raw_issue)) <= 2 else str(raw_issue)
+                    minimal_name = self._fallback_comicname(self.query['comicname'])
+                    words = [w for w in minimal_name.split() if w.lower() not in ('the', 'of', 'and', 'a', 'an')]
+                    if len(words) >= 2:
+                        short_query = '%s %s %s' % (words[0], words[1], iss)
+                        logger.fdebug('[DDL(Easynews)-QUERY] Fallback query (minimal): %s' % short_query)
+                        result_generator = self.perform_search_queries(short_query)
+                        sfs = search_filer.search_check()
+                        match = sfs.check_for_first_result(
+                            result_generator, is_info, prefer_pack=False
+                        )
+                        if match is not None:
+                            verified_matches = [match]
+                            logger.fdebug('[DDL(Easynews)] verified_matches (minimal query): %s' % (verified_matches,))
+                        else:
+                            time.sleep(mylar.CONFIG.DDL_QUERY_DELAY)
 
         except requests.exceptions.Timeout as e:
             logger.warn('[DDL(Easynews)] Timeout occured fetching data: %s' % e)
@@ -199,16 +294,20 @@ class Easynews(object):
 
             dl_farm = data.get('dlFarm')
             dl_port = data.get('dlPort')
+            down_url = (data.get('downURL') or '').strip()
             results = data.get('data', [])
 
             if not results:
                 logger.fdebug('[DDL(Easynews)] No results on page %s' % page_number)
+                if page_number == 1 and isinstance(data, dict):
+                    keys = list(data.keys())[:15]
+                    logger.fdebug('[DDL(Easynews)] Response keys: %s' % keys)
                 break
 
             logger.info('[DDL(Easynews)] Found %s results on page %s' % (len(results), page_number))
 
             for item in results:
-                normalized = self._normalize_result(item, dl_farm, dl_port)
+                normalized = self._normalize_result(item, dl_farm, dl_port, down_url)
                 if normalized is not None:
                     yield normalized
 
@@ -217,7 +316,7 @@ class Easynews(object):
 
             page_number += 1
 
-    def _normalize_result(self, item, dl_farm, dl_port):
+    def _normalize_result(self, item, dl_farm, dl_port, down_url=''):
         # Skip password protected or virus-flagged files
         if item.get('passwd') or item.get('virus'):
             return None
@@ -227,14 +326,26 @@ class Easynews(object):
         rawsize = item.get('rawSize', item.get('4', 0))
         date_str = item.get('5', '')
         filename = item.get('10', '')
+        sig = item.get('sig', '')
 
         if not file_hash or not filename:
             return None
 
-        # Build the download URL
-        download_url = 'https://members.easynews.com/%s/%s/%s%s/%s%s' % (
-            dl_farm, dl_port, file_hash, extension, filename, extension
-        )
+        # Hash segment: ensure dot before extension (API may return "cbz" or ".cbz")
+        ext_dot = ('.' + extension) if extension and not extension.startswith('.') else (extension or '')
+        hash_segment = file_hash + ext_dot
+        # Easynews download format: downURL/dlFarm/dlPort/hash.ext/encoded_filename.ext?sig=...
+        path_filename = filename if (ext_dot and filename.endswith(ext_dot)) else (filename + ext_dot if ext_dot else filename)
+        if down_url and sig:
+            base = down_url.rstrip('/') + '/' + str(dl_farm) + '/' + str(dl_port) + '/' + hash_segment
+            download_url = base + '/' + quote(path_filename, safe='') + '?sig=' + quote(sig, safe='|')
+        elif down_url:
+            base = down_url.rstrip('/') + '/' + str(dl_farm) + '/' + str(dl_port) + '/' + hash_segment
+            download_url = base + '/' + quote(path_filename, safe='')
+        else:
+            download_url = 'https://members.easynews.com/%s/%s/%s%s/%s%s' % (
+                dl_farm, dl_port, file_hash, ext_dot, quote(path_filename, safe=''), ext_dot
+            )
 
         # Format file size for display
         try:
@@ -283,8 +394,10 @@ class Easynews(object):
         filename = None
 
         try:
-            # Extract filename from URL path
+            # Extract filename from URL path (strip ?sig=... query)
             url_filename = link.rsplit('/', 1)[-1] if '/' in link else None
+            if url_filename and '?' in url_filename:
+                url_filename = url_filename.split('?', 1)[0]
             if url_filename:
                 filename = requests.utils.unquote(url_filename)
             else:

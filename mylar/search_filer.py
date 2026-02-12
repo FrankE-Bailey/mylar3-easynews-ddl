@@ -160,8 +160,11 @@ class search_check(object):
                             else:
                                 comsize_b = helpers.human2bytes(entry['size'])
                     except Exception:
-                        tmpsz = entry.enclosures[0]
-                        comsize_b = tmpsz['length']
+                        if hasattr(entry, 'enclosures') and entry.enclosures:
+                            tmpsz = entry.enclosures[0]
+                            comsize_b = tmpsz['length']
+                        else:
+                            comsize_b = None
 
             logger.fdebug('comsize_b: %s' % comsize_b)
             # file restriction limitation here
