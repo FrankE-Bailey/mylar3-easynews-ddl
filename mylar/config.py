@@ -376,6 +376,10 @@ _CONFIG_DEFINITIONS = OrderedDict({
     'ENABLE_PROXY': (bool, 'DDL', False),
     'HTTP_PROXY': (str, 'DDL', None),
     'HTTPS_PROXY': (str, 'DDL', None),
+    'ENABLE_EASYNEWS': (bool, 'DDL', False),
+    'EASYNEWS_USERNAME': (str, 'DDL', None),
+    'EASYNEWS_PASSWORD': (str, 'DDL', None),
+
     'JD2_ENABLE': (bool, 'DDL', False),
     'JD2_DEST_DIR': (str, 'DDL', None),
     'JD2_URL': (str, 'DDL', None),
@@ -1148,6 +1152,7 @@ class Config(object):
                             'OPDS_PASSWORD':         ('OPDS', 'opds_password', self.OPDS_PASSWORD),
                             'PP_SSHPASSWD':          ('AutoSnatch', 'pp_sshpasswd', self.PP_SSHPASSWD),
                             'EMAIL_PASSWORD':        ('Email','email_password', self.EMAIL_PASSWORD),
+                            'EASYNEWS_PASSWORD':     ('DDL', 'easynews_password', self.EASYNEWS_PASSWORD),
                             })
 
         new_encrypted = 0
@@ -1904,11 +1909,14 @@ class Config(object):
             if self.ENABLE_EXTERNAL_SERVER:
                 PR.append('DDL(External)')
                 PR_NUM +=1
+            if self.ENABLE_EASYNEWS:
+                PR.append('DDL(Easynews)')
+                PR_NUM +=1
         if self.ENABLE_AIRDCPP:
             PR.append('AirDCPP')
             PR_NUM += 1
 
-        PPR = ['Experimental', 'DDL(GetComics)', 'DDL(External)', 'AirDCPP']
+        PPR = ['Experimental', 'DDL(GetComics)', 'DDL(External)', 'DDL(Easynews)', 'AirDCPP']
         if self.NEWZNAB:
             for ens in self.EXTRA_NEWZNABS:
                 if str(ens[5]) == '1': # if newznabs are enabled
@@ -2107,10 +2115,13 @@ class Config(object):
                if 'DDL(GetComics)' in tmp_prov:
                    t_type = 'DDL'
                    t_id = 200
-               if 'DDL(External)' in tmp_prov:
+               elif 'DDL(External)' in tmp_prov:
                    t_type = 'DDL(External)'
                    t_id = 201
-               if 'AirDCPP' in tmp_prov:
+               elif 'DDL(Easynews)' in tmp_prov:
+                   t_type = 'DDL'
+                   t_id = 203
+               elif 'AirDCPP' in tmp_prov:
                    t_type = 'AirDCPP'
                    t_id = 202
                elif any(['experimental' in tmp_prov, 'Experimental' in tmp_prov]):

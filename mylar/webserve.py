@@ -6920,6 +6920,9 @@ class WebInterface(object):
                     "external_server": mylar.CONFIG.EXTERNAL_SERVER,
                     "external_username": mylar.CONFIG.EXTERNAL_USERNAME,
                     "external_apikey": mylar.CONFIG.EXTERNAL_APIKEY,
+                    "enable_easynews": helpers.checked(mylar.CONFIG.ENABLE_EASYNEWS),
+                    "easynews_username": mylar.CONFIG.EASYNEWS_USERNAME,
+                    "easynews_password": mylar.CONFIG.EASYNEWS_PASSWORD,
                     "enable_rss": helpers.checked(mylar.CONFIG.ENABLE_RSS),
                     "rss_checkinterval": mylar.CONFIG.RSS_CHECKINTERVAL,
                     "rss_last": rss_sclast,
@@ -7405,8 +7408,8 @@ class WebInterface(object):
                            'lowercase_filenames', 'autowant_upcoming', 'autowant_all', 'comic_cover_local', 'cover_folder_local', 'series_metadata_local', 'alternate_latest_series_covers', 'cvinfo', 'snatchedtorrent_notify',
                            'prowl_enabled', 'prowl_onsnatch', 'pushover_enabled', 'pushover_onsnatch', 'pushover_image', 'mattermost_enabled', 'mattermost_onsnatch', 'boxcar_enabled',
                            'boxcar_onsnatch', 'pushbullet_enabled', 'pushbullet_onsnatch', 'telegram_enabled', 'telegram_onsnatch', 'telegram_image', 'discord_enabled', 'discord_onsnatch', 'slack_enabled', 'slack_onsnatch',
-                           'email_enabled', 'email_enc', 'email_ongrab', 'email_onpost', 'gotify_enabled', 'gotify_server_url', 'gotify_token', 'gotify_onsnatch', 'opds_enable', 'opds_authentication', 'opds_metainfo', 'opds_pagesize', 'enable_ddl',
-                           'enable_getcomics', 'enable_airdcpp', 'jd2_enable', 'enable_external_server', 'ddl_prefer_upscaled', 'deluge_pause'] #enable_public
+                           'email_enabled', 'email_enc', 'email_ongrab', 'email_onpost', 'gotify_enabled', 'gotify_server_url', 'gotify_token', 'gotify_onsnatch', 'opds_enable', 'opds_authentication', 'opds_metainfo', 'opds_pagesize',                            'enable_ddl',
+                           'enable_getcomics', 'enable_airdcpp', 'jd2_enable', 'enable_external_server', 'enable_easynews', 'ddl_prefer_upscaled', 'deluge_pause'] #enable_public
 
         for checked_config in checked_configs:
             if checked_config not in kwargs:
@@ -8577,6 +8580,25 @@ class WebInterface(object):
             logger.warn('Testing failed to %s [HOST:%s][SSL:%s]' % (name, host, bool(ssl)))
             return 'Error - failed running test for %s' % name
     testtorznab.exposed = True
+
+    def testeasynews(self, username, password):
+        import requests as test_requests
+        try:
+            response = test_requests.get(
+                'https://members.easynews.com/2.0/search/solr-search/advanced',
+                params={'gps': 'test', 'pby': 1, 'st': 'adv', 'sb': 1},
+                auth=(username, password),
+                timeout=15
+            )
+            if response.status_code == 200:
+                return json.dumps({"status": True, "message": "Successfully connected to Easynews."})
+            elif response.status_code == 401:
+                return json.dumps({"status": False, "message": "Authentication failed. Check username/password."})
+            else:
+                return json.dumps({"status": False, "message": "Connection failed (status %s)." % response.status_code})
+        except Exception as e:
+            return json.dumps({"status": False, "message": "Connection error: %s" % str(e)})
+    testeasynews.exposed = True
 
     def orderThis(self, **kwargs):
         return
