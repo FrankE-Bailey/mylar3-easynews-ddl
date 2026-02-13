@@ -1113,6 +1113,16 @@ class Config(object):
         ###
         config.set('General', 'dynamic_update', str(self.DYNAMIC_UPDATE))
 
+        # Ensure Scoring section is written when we have rules (so it is never missed)
+        raw_rules = getattr(self, 'RESULT_SCORING_RULES', None)
+        if raw_rules is not None:
+            try:
+                if not config.has_section('Scoring'):
+                    config.add_section('Scoring')
+                config.set('Scoring', 'result_scoring_rules', str(raw_rules))
+            except Exception:
+                pass
+
         if values is not None:
             self.process_kwargs(values)
 

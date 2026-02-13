@@ -7408,11 +7408,24 @@ class WebInterface(object):
                            'prowl_enabled', 'prowl_onsnatch', 'pushover_enabled', 'pushover_onsnatch', 'pushover_image', 'mattermost_enabled', 'mattermost_onsnatch', 'boxcar_enabled',
                            'boxcar_onsnatch', 'pushbullet_enabled', 'pushbullet_onsnatch', 'telegram_enabled', 'telegram_onsnatch', 'telegram_image', 'discord_enabled', 'discord_onsnatch', 'slack_enabled', 'slack_onsnatch',
                            'email_enabled', 'email_enc', 'email_ongrab', 'email_onpost', 'gotify_enabled', 'gotify_server_url', 'gotify_token', 'gotify_onsnatch', 'opds_enable', 'opds_authentication', 'opds_metainfo', 'opds_pagesize', 'enable_ddl',
-                           'enable_getcomics', 'enable_airdcpp', 'jd2_enable', 'enable_external_server', 'enable_easynews', 'ddl_prefer_upscaled', 'deluge_pause', 'enable_result_scoring'] #enable_public
+                           'enable_getcomics', 'enable_airdcpp', 'jd2_enable', 'enable_external_server', 'ddl_prefer_upscaled', 'deluge_pause', 'enable_result_scoring'] #enable_public
 
         for checked_config in checked_configs:
             if checked_config not in kwargs:
                 kwargs[checked_config] = False
+
+        # Explicitly persist result scoring rules so they are never dropped (form hidden field)
+        if 'result_scoring_rules' in kwargs:
+            raw = kwargs['result_scoring_rules']
+            if raw is not None and str(raw).strip():
+                try:
+                    parser = config.config
+                    if not parser.has_section('Scoring'):
+                        parser.add_section('Scoring')
+                    parser.set('Scoring', 'result_scoring_rules', str(raw).strip())
+                    setattr(mylar.CONFIG, 'RESULT_SCORING_RULES', str(raw).strip())
+                except Exception as e:
+                    logger.warn('Failed to save result_scoring_rules: %s' % e)
 
         for k, v in kwargs.items():
             try:

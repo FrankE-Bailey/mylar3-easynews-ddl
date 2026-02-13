@@ -1846,7 +1846,7 @@
              </tr>
         </table>
     </div>	
-        <input type="button" value="Save Changes" onclick="serializeScoringRules(); doAjaxCall('configUpdate',$(this),'tabs',true,'post');return false;" data-success="Changes saved successfully">
+        <input type="button" value="Save Changes" onclick="serializeScoringRules(); doAjaxCall('configUpdate',$(this),'tabs',true,'post'); return false;" data-success="Changes saved successfully">
         <div class="message">
         	<p><span class="ui-icon ui-icon-info" style="float: left; margin-right: .3em;"></span>Web Interface changes require a restart to take effect</p>
 	</div>
@@ -3559,7 +3559,7 @@ $("#enable_airdcpp").click(function(){
 			$( "#tabs" ).tabs();
 		});
 
-		function serializeScoringRules() {
+		window.serializeScoringRules = function() {
 			var rules = [];
 			$('#scoring_rules_tbody tr').each(function() {
 				var $row = $(this);
@@ -3572,7 +3572,7 @@ $("#enable_airdcpp").click(function(){
 				});
 			});
 			$('#result_scoring_rules_json').val(JSON.stringify(rules));
-		}
+		};
 		$('#scoring_add_rule').on('click', function() {
 			var row = '<tr><td><input type="text" class="scoring-label" /></td>' +
 				'<td><select class="scoring-type"><option value="title">title</option><option value="provider">provider</option></select></td>' +

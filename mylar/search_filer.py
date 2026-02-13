@@ -1171,11 +1171,14 @@ class search_check(object):
         if hold_the_matches and getattr(mylar.CONFIG, 'ENABLE_RESULT_SCORING', False):
             try:
                 rules = json.loads(mylar.CONFIG.RESULT_SCORING_RULES or '[]')
-                if rules:
+                if rules and len(hold_the_matches) > 1:
                     for m in hold_the_matches:
                         m['_score'] = _score_match(m, rules)
                     hold_the_matches.sort(key=lambda m: m.get('_score', 0), reverse=True)
                     mylar.COMICINFO[:] = hold_the_matches
+                    best = hold_the_matches[0]
+                    logger.info('[RESULT SCORING] Sorted %s candidates by score; chosen score=%s provider=%s title=%s' % (
+                        len(hold_the_matches), best.get('_score', 0), best.get('nzbprov', best.get('provider', '')), best.get('nzbtitle', best.get('ComicTitle', ''))[:60]))
             except (TypeError, ValueError):
                 pass
 
@@ -1196,7 +1199,7 @@ class search_check(object):
         if getattr(mylar.CONFIG, 'ENABLE_RESULT_SCORING', False):
             try:
                 rules = json.loads(mylar.CONFIG.RESULT_SCORING_RULES or '[]')
-                if rules:
+                if rules and len(candidates) > 1:
                     for m in candidates:
                         m['_score'] = _score_match(m, rules)
                     candidates.sort(key=lambda m: m.get('_score', 0), reverse=True)
@@ -1207,7 +1210,14 @@ class search_check(object):
         for m in candidates:
             is_pack = m["pack"]
             if (prefer_pack and is_pack) or (not prefer_pack and not is_pack):
-                logger.fdebug('check_for_first_result: chosen (pack_pref=%s) score=%s' % (prefer_pack, m.get('_score', 0)))
+                if getattr(mylar.CONFIG, 'ENABLE_RESULT_SCORING', False) and len(candidates) > 1:
+                    logger.info('[RESULT SCORING] Chose candidate score=%s provider=%s title=%s' % (
+                        m.get('_score', 0), m.get('nzbprov', m.get('provider', '')), (m.get('nzbtitle') or m.get('ComicTitle', ''))[:60]))
                 return m
-        logger.info('candidate: %s' % candidates[0])
-        return candidates[0]
+        fallback = candidates[0]
+        if getattr(mylar.CONFIG, 'ENABLE_RESULT_SCORING', False) and len(candidates) > 1:
+            logger.info('[RESULT SCORING] Chose fallback (no pack match) score=%s provider=%s title=%s' % (
+                fallback.get('_score', 0), fallback.get('nzbprov', fallback.get('provider', '')), (fallback.get('nzbtitle') or fallback.get('ComicTitle', ''))[:60]))
+        else:
+            logger.info('candidate: %s' % fallback)
+        return fallback
