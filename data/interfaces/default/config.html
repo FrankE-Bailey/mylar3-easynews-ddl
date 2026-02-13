@@ -1,6 +1,7 @@
 <%inherit file="base.html"/>
 <%!
 	import mylar
+	import json
         from operator import itemgetter
 %>
 
@@ -46,6 +47,7 @@
 			<li><a href="#tabs-4">Search providers</a></li>
 			<li><a href="#tabs-5">Quality &amp; Post Processing</a></li>
 			<li><a href="#tabs-6">Advanced Settings</a></li>
+			<li><a href="#tabs-7">Result scoring</a></li>
 		</ul>
 
         <div id="tabs-1">
@@ -1408,6 +1410,55 @@
             </tr>
 		</table>
 	</div>
+	<div id="tabs-7">
+        <table class="configtable" summary="Result scoring">
+            <tr>
+                <td colspan="2">
+                    <fieldset>
+                        <legend>Search result scoring</legend>
+                        <p>When multiple search results match the same issue, Mylar can score each result and pick the highest-scoring one. Add rules below; each rule adds points when it matches. Disable the feature or leave no rules to use the previous behaviour (first valid match).</p>
+                        <div class="row checkbox left clearfix">
+                            <input type="checkbox" id="enable_result_scoring" name="enable_result_scoring" value="1" ${config['enable_result_scoring']} /><label>Enable result scoring</label>
+                        </div>
+                        <input type="hidden" name="result_scoring_rules" id="result_scoring_rules_json" value="" />
+                        <div class="row">
+                            <table id="scoring_rules_table" class="display" style="width:100%; margin-top: 8px;">
+                                <thead>
+                                    <tr>
+                                        <th>Label</th>
+                                        <th>Match</th>
+                                        <th>Value (title text or provider name)</th>
+                                        <th>Score</th>
+                                        <th>On</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scoring_rules_tbody">
+                                % for r in config.get('result_scoring_rules', []):
+                                    <tr>
+                                        <td><input type="text" class="scoring-label" value="${r.get('label', '') | h}" /></td>
+                                        <td>
+                                            <select class="scoring-type">
+                                                <option value="title" ${'selected="selected"' if r.get('type') == 'title' else ''}>title</option>
+                                                <option value="provider" ${'selected="selected"' if r.get('type') == 'provider' else ''}>provider</option>
+                                            </select>
+                                        </td>
+                                        <td><input type="text" class="scoring-value" value="${r.get('value', '') | h}" /></td>
+                                        <td><input type="number" class="scoring-score" value="${r.get('score', 0)}" style="width:4em;" /></td>
+                                        <td><input type="checkbox" class="scoring-enabled" ${'checked="checked"' if r.get('enabled', True) else ''} /></td>
+                                        <td><button type="button" class="scoring-remove-rule">Remove</button></td>
+                                    </tr>
+                                % endfor
+                                </tbody>
+                            </table>
+                            <button type="button" id="scoring_add_rule" class="button">Add rule</button>
+                        </div>
+                        <small>Match type: <strong>title</strong> = regex/case-insensitive match in result title; <strong>provider</strong> = provider name contains value (e.g. DDL, GetComics, Easynews).</small>
+                    </fieldset>
+                </td>
+            </tr>
+        </table>
+	</div>
 	<div id="tabs-6">
         <table class="configtable" summary="Advanced Settings">
             <tr>
@@ -1795,7 +1846,7 @@
              </tr>
         </table>
     </div>	
-        <input type="button" value="Save Changes" onclick="doAjaxCall('configUpdate',$(this),'tabs',true,'post');return false;" data-success="Changes saved successfully">
+        <input type="button" value="Save Changes" onclick="serializeScoringRules(); doAjaxCall('configUpdate',$(this),'tabs',true,'post');return false;" data-success="Changes saved successfully">
         <div class="message">
         	<p><span class="ui-icon ui-icon-info" style="float: left; margin-right: .3em;"></span>Web Interface changes require a restart to take effect</p>
 	</div>
@@ -3507,6 +3558,34 @@ $("#enable_airdcpp").click(function(){
 		$(function() {
 			$( "#tabs" ).tabs();
 		});
+
+		function serializeScoringRules() {
+			var rules = [];
+			$('#scoring_rules_tbody tr').each(function() {
+				var $row = $(this);
+				rules.push({
+					label: $row.find('.scoring-label').val() || '',
+					type: $row.find('.scoring-type').val() || 'title',
+					value: $row.find('.scoring-value').val() || '',
+					score: parseInt($row.find('.scoring-score').val(), 10) || 0,
+					enabled: $row.find('.scoring-enabled').is(':checked')
+				});
+			});
+			$('#result_scoring_rules_json').val(JSON.stringify(rules));
+		}
+		$('#scoring_add_rule').on('click', function() {
+			var row = '<tr><td><input type="text" class="scoring-label" /></td>' +
+				'<td><select class="scoring-type"><option value="title">title</option><option value="provider">provider</option></select></td>' +
+				'<td><input type="text" class="scoring-value" /></td>' +
+				'<td><input type="number" class="scoring-score" value="0" style="width:4em;" /></td>' +
+				'<td><input type="checkbox" class="scoring-enabled" checked="checked" /></td>' +
+				'<td><button type="button" class="scoring-remove-rule">Remove</button></td></tr>';
+			$('#scoring_rules_tbody').append(row);
+		});
+		$('#scoring_rules_tbody').on('click', '.scoring-remove-rule', function() {
+			$(this).closest('tr').remove();
+		});
+
 		initActions();
                 $(function selector(){
                         $.when($.ajax({

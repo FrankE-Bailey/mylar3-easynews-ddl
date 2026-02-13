@@ -466,6 +466,10 @@ _CONFIG_DEFINITIONS = OrderedDict({
     'CBL_IMPORT_ISSUESONLY' : (bool, 'CBLImport', True),
     'CBL_IMPORT_IGNOREARCHIVED' : (bool, 'CBLImport', False),
 
+    # Result scoring: when multiple search results match, score and pick highest (Settings > Result scoring)
+    'ENABLE_RESULT_SCORING': (bool, 'Scoring', False),
+    'RESULT_SCORING_RULES': (str, 'Scoring', '[]'),
+
 })
 
 _BAD_DEFINITIONS = OrderedDict({
@@ -1660,6 +1664,27 @@ class Config(object):
             config.set('DDL', 'ddl_priority_order', json.dumps(self.DDL_PRIORITY_ORDER))
 
         logger.info('[DDL PRIORITY ORDER] DDL will attempt to use the following 3rd party sites in this specific download order: %s' % self.DDL_PRIORITY_ORDER)
+
+        # Result scoring rules: must be JSON list of dicts with label, type, value, score, enabled
+        try:
+            raw = self.RESULT_SCORING_RULES
+            rules = raw if isinstance(raw, list) else json.loads(raw or '[]')
+            if not isinstance(rules, list):
+                rules = []
+            valid = []
+            for r in rules:
+                if isinstance(r, dict) and 'type' in r and 'score' in r:
+                    valid.append({
+                        'label': r.get('label', ''),
+                        'type': str(r.get('type', 'title')).lower(),
+                        'value': r.get('value', ''),
+                        'score': int(r.get('score', 0)),
+                        'enabled': bool(r.get('enabled', True)),
+                    })
+            setattr(self, 'RESULT_SCORING_RULES', json.dumps(valid))
+        except (TypeError, ValueError) as e:
+            logger.warn('[RESULT SCORING] Invalid result_scoring_rules, reset to empty: %s' % e)
+            setattr(self, 'RESULT_SCORING_RULES', '[]')
 
         if self.SEARCH_TIER_CUTOFF is None:
             self.SEARCH_TIER_CUTOFF = 14

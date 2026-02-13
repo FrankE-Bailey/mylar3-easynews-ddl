@@ -15,6 +15,7 @@
 # along with Mylar.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
+import json
 import email.utils
 import datetime
 import time
@@ -22,6 +23,30 @@ from wsgiref.handlers import format_date_time
 
 import mylar
 from mylar import logger, filechecker, helpers, search
+
+
+def _score_match(match, rules):
+    """Score a single match dict using configured rules. Returns integer (higher = better)."""
+    if not rules:
+        return 0
+    total = 0
+    title = (match.get('ComicTitle') or match.get('nzbtitle') or '') + ' ' + (match.get('entry', {}).get('title') or '')
+    provider = match.get('nzbprov') or match.get('provider') or match.get('entry', {}).get('site') or ''
+    for r in rules:
+        if not r.get('enabled', True):
+            continue
+        rtype = (r.get('type') or 'title').lower()
+        value = (r.get('value') or '').strip()
+        if not value:
+            continue
+        score = int(r.get('score', 0))
+        if rtype == 'title':
+            if re.search(value, title, re.I):
+                total += score
+        elif rtype == 'provider':
+            if value.lower() in (provider or '').lower():
+                total += score
+    return total
 
 
 class search_check(object):
@@ -1143,22 +1168,46 @@ class search_check(object):
                 mylar.COMICINFO.append(maybe_value)
                 hold_the_matches.append(maybe_value)
 
+        if hold_the_matches and getattr(mylar.CONFIG, 'ENABLE_RESULT_SCORING', False):
+            try:
+                rules = json.loads(mylar.CONFIG.RESULT_SCORING_RULES or '[]')
+                if rules:
+                    for m in hold_the_matches:
+                        m['_score'] = _score_match(m, rules)
+                    hold_the_matches.sort(key=lambda m: m.get('_score', 0), reverse=True)
+                    mylar.COMICINFO[:] = hold_the_matches
+            except (TypeError, ValueError):
+                pass
+
         #logger.fdebug('returning hold_the_matches: %s' % (hold_the_matches,))
         return hold_the_matches
 
     def check_for_first_result(self, entries, is_info, prefer_pack=False):
-        candidate = None
+        candidates = []
         for entry in entries:
             maybe_value = self._process_entry(entry, is_info)
             #logger.fdebug('maybe_value: %s' % maybe_value)
             if maybe_value is not None:
-                # If we have a value which matches our pack/not-pack
-                # preference, return it: otherwise, store it for return if we
-                # don't find a better candidate
-                is_pack = maybe_value["pack"]
-                if (prefer_pack and is_pack) or (not prefer_pack and not is_pack):
-                    # (This reduces to prefer_pack == is_pack, but that's harder to grok)
-                    return maybe_value
-                candidate = maybe_value
-        logger.info('candidate: %s' % candidate)
-        return candidate
+                candidates.append(maybe_value)
+
+        if not candidates:
+            return None
+
+        if getattr(mylar.CONFIG, 'ENABLE_RESULT_SCORING', False):
+            try:
+                rules = json.loads(mylar.CONFIG.RESULT_SCORING_RULES or '[]')
+                if rules:
+                    for m in candidates:
+                        m['_score'] = _score_match(m, rules)
+                    candidates.sort(key=lambda m: m.get('_score', 0), reverse=True)
+            except (TypeError, ValueError):
+                pass
+
+        # Prefer one that matches pack preference; among those (or all), take first = best score
+        for m in candidates:
+            is_pack = m["pack"]
+            if (prefer_pack and is_pack) or (not prefer_pack and not is_pack):
+                logger.fdebug('check_for_first_result: chosen (pack_pref=%s) score=%s' % (prefer_pack, m.get('_score', 0)))
+                return m
+        logger.info('candidate: %s' % candidates[0])
+        return candidates[0]

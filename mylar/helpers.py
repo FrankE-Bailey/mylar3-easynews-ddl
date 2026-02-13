@@ -1214,11 +1214,12 @@ def filesafe(comic):
 
     #logger.info('comic-type: %s' % type(u_comic))
 
+    _filesafe_strip = r'[\:\'\"\,\?\!\\\]]'  # ] escaped so literal; final ] closes class
     if type(u_comic) != bytes:
-        comicname_filesafe = re.sub(r'[\:\'\"\,\?\!\\\]', '', u_comic)
+        comicname_filesafe = re.sub(_filesafe_strip, '', u_comic)
         comicname_filesafe = re.sub(r'[\/\*]', '-', comicname_filesafe)
     else:
-        comicname_filesafe = re.sub(r'[\:\'\"\,\?\!\\\]', '', u_comic.decode('utf-8'))
+        comicname_filesafe = re.sub(_filesafe_strip, '', u_comic.decode('utf-8'))
         comicname_filesafe = re.sub(r'[\/\*]', '-', comicname_filesafe)
 
     return comicname_filesafe
