@@ -28,6 +28,23 @@ import mylar
 from mylar import db, logger, helpers, search_filer
 
 
+def _path_for_local_fs(path):
+    """
+    When Mylar runs in WSL2 and the path is a Windows path (e.g. Q:/Media/...),
+    convert it to the WSL mount path (/mnt/q/Media/...) so os.path.exists() etc. see the file.
+    The same path is sent to the AirDC++ API (Windows) as-is so the client saves to the right place.
+    """
+    if not path or os.name == 'nt':
+        return path
+    # Linux/WSL: convert Windows drive path to /mnt/<drive>/
+    path = path.replace('\\', '/')
+    m = re.match(r'^([A-Za-z]):(.*)$', path.strip())
+    if m:
+        drive, rest = m.group(1).lower(), (m.group(2) or '').lstrip('/')
+        return os.path.normpath('/mnt/%s/%s' % (drive, rest)) if rest else ('/mnt/%s' % drive)
+    return os.path.normpath(path)
+
+
 class AirDCPP(object):
     def __init__(self, query=None, issueid=None, comicid=None, oneoff=False, provider_stat=None):
         self.query = query
@@ -171,7 +188,15 @@ class AirDCPP(object):
                 "priority": 3
             }
             if len(mylar.CONFIG.AIRDCPP_HUBS) > 0:
-                payload["hub_urls"] = mylar.CONFIG.AIRDCPP_HUBS.split(',')
+                # API expects hub URL as host:port (no adc:// prefix); normalize in case user pasted full URL
+                def _norm_hub(u):
+                    u = u.strip()
+                    for prefix in ('adcs://', 'adc://'):
+                        if u.lower().startswith(prefix):
+                            u = u[len(prefix):]
+                            break
+                    return u
+                payload["hub_urls"] = [_norm_hub(u) for u in mylar.CONFIG.AIRDCPP_HUBS.split(',') if u.strip()]
             time.sleep(45)
             response = self.session.post(
                 f"{self.api_url}/search/{search_instance_id}/hub_search",
@@ -187,6 +212,23 @@ class AirDCPP(object):
                 return data.get('search_id')
             else:
                 logger.warn(f"[AIRDCPP] Failed to search hub: {response.status_code} - {response.text}")
+                if response.status_code == 400 and 'not found' in (response.text or '').lower():
+                    try:
+                        hubs_resp = self.session.get(f"{self.api_url}/hubs", headers=self.headers, timeout=10)
+                        if hubs_resp.status_code == 200:
+                            hubs = hubs_resp.json()
+                            if hubs:
+                                urls = [h.get('hub_url', '') for h in hubs if h.get('hub_url')]
+                                if urls:
+                                    logger.info('[AIRDCPP] Use one of these exact hub URLs from your connected hubs: %s' % ', '.join(urls))
+                                else:
+                                    logger.warn('[AIRDCPP] No connected hubs; connect to a hub in AirDC++ Web Client first.')
+                            else:
+                                logger.warn('[AIRDCPP] No hubs connected; connect in AirDC++ Web Client and use the hub URL from there.')
+                        else:
+                            logger.fdebug('[AIRDCPP] Could not fetch hub list: %s' % hubs_resp.status_code)
+                    except Exception as e:
+                        logger.fdebug('[AIRDCPP] Could not fetch hub list: %s' % e)
                 return None
 
         except Exception as e:
@@ -321,9 +363,11 @@ class AirDCPP(object):
         if mylar.CONFIG.AIRDCPP_DOWNLOAD_DIR:
             dl_location = mylar.CONFIG.AIRDCPP_DOWNLOAD_DIR
         else:
-            dl_location = os.path.join(mylar.CONFIG.DDL_LOCATION, 'airdcc')
+            dl_location = os.path.join(mylar.CONFIG.DDL_LOCATION, 'airdcpp')
 
-        filepath = os.path.join(dl_location, filename)
+        dl_location = os.path.normpath(dl_location)
+        # Use WSL path for local fs check when Mylar is in WSL and path is Windows (e.g. Q:/...)
+        filepath_local = os.path.normpath(os.path.join(_path_for_local_fs(dl_location), filename))
         start_time = time.time()
 
         logger.info(f"[AIRDCPP] Checking download status for {filename}")
@@ -341,12 +385,15 @@ class AirDCPP(object):
                     status = bundle_data.get('status', {})
                     if status.get('completed', False):
                         logger.info(f"[AIRDCPP] Download reported as completed by API")
-                        if os.path.exists(filepath):
-                            final_size = os.path.getsize(filepath)
+                        # Brief delay in case the client is still flushing to disk
+                        time.sleep(2)
+                        if os.path.exists(filepath_local):
+                            final_size = os.path.getsize(filepath_local)
                             logger.info(f"[AIRDCPP] Download complete: {filename} ({final_size / (1024 * 1024):.2f} MB)")
                             return True
                         else:
-                            logger.warn(f"[AIRDCPP] Download completed but file not found: {filepath}")
+                            logger.warn(f"[AIRDCPP] Download completed but file not found: {filepath_local}")
+                            logger.warn("[AIRDCPP] If Mylar is in WSL, set AirDC++ Download Dir to the Windows path (e.g. Q:/Media/mylar_complete); Mylar will look under /mnt/q/...")
                             return False
 
                     downloaded = bundle_data.get('downloaded_bytes', 0)
@@ -388,14 +435,16 @@ class AirDCPP(object):
         else:
             dl_location = os.path.join(mylar.CONFIG.DDL_LOCATION, 'airdcpp')
 
-        dl_location = dl_location.replace('\\', '/')  # Convert Windows backslashes to forward slashes
+        dl_location = dl_location.replace('\\', '/')  # For API (Windows client)
         if not dl_location.endswith('/'):
             dl_location += '/'
 
-        if not os.path.isdir(dl_location):
-            checkdirectory = mylar.filechecker.validateAndCreateDirectory(dl_location, True)
+        # For local fs (WSL): use /mnt/q/... when path is Q:/... so we see files saved by Windows AirDC++
+        dl_location_local = _path_for_local_fs(dl_location.rstrip('/'))
+        if dl_location_local and not os.path.isdir(dl_location_local):
+            checkdirectory = mylar.filechecker.validateAndCreateDirectory(dl_location_local, True)
             if not checkdirectory:
-                logger.warn('[ABORTING] Error trying to validate/create AirDC++ download directory: %s.' % dl_location)
+                logger.warn('[ABORTING] Error trying to validate/create AirDC++ download directory: %s.' % dl_location_local)
                 return {"success": False, "filename": filename, "path": None}
 
         try:
@@ -403,8 +452,11 @@ class AirDCPP(object):
             if search_instance_id is None:
                 search_instance_id = self.current_search_instance_id
 
+            # Do not send target_directory: when sent (e.g. Q:/Media/mylar_complete/), the client
+            # can save to its default folder (e.g. Q:\AirDC\) and mangle the path into the filename
+            # (e.g. "_Media_mylar_complete_Blood and Thunder 007....cbr"). Rely on the user having
+            # set AirDC++'s download folder to match AIRDCPP_DOWNLOAD_DIR; we only set the filename.
             payload = {
-                "target_directory": dl_location,
                 "target_name": filename,
                 "priority": 4
             }
@@ -438,7 +490,7 @@ class AirDCPP(object):
             download_complete = self.check_download_complete(bundle_id, filename)
 
             if download_complete:
-                filepath = os.path.join(dl_location, filename)
+                filepath = os.path.normpath(os.path.join(dl_location_local, filename))
                 if os.path.exists(filepath):
                     # If the file exists, the download was successful
                     logger.info(f"[AIRDCPP] Download completed successfully: {filepath}")
@@ -447,7 +499,7 @@ class AirDCPP(object):
                     if issueid:
                         file, ext = os.path.splitext(filename)
                         new_filename = f"{file}[__{issueid}__]{ext}"
-                        new_filepath = os.path.join(dl_location, new_filename)
+                        new_filepath = os.path.join(dl_location_local, new_filename)
                         try:
                             os.rename(filepath, new_filepath)
                             filepath = new_filepath
