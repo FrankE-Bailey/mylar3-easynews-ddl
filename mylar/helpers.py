@@ -2948,6 +2948,20 @@ def ddl_downloader(queue):
                 meganz = mega.MegaNZ()
                 ddzstat = meganz.ddl_download(item['link'], item['filename'], item['id'], item['issueid'], item['link_type'])
 
+            elif item['site'] == 'DDL(Easynews)':
+                try:
+                    remote_filesize = item.get('remote_filesize', 0)
+                    if remote_filesize == 0:
+                        try:
+                            remote_filesize = helpers.human2bytes(re.sub('/s', '', item['size'][:-1]).strip())
+                        except Exception:
+                            remote_filesize = 0
+                except Exception:
+                    remote_filesize = 0
+                from mylar import easynews
+                en = easynews.Easynews()
+                ddzstat = en.downloadit(item['id'], item['link'], item['issueid'], remote_filesize)
+
             # Check for file validity post download and mark as failure if file is not a zip, rar, or pdf
             # Can only check single downloads.  Packs will have to be managed by post-processing if enabled
             if ddzstat['success'] and ddzstat['filename'] is not None:
@@ -4856,6 +4870,10 @@ def check_file_condition(file_path):
                 test_result = rarf.testrar()
                 if test_result is not None:
                     return {'status': False, 'type' : 'RAR', 'quality': f'CRC error in file {test_result}.'}
+        except rarfile.RarCannotExec as e:
+            # No unrar/rar tool available - accept file without CRC verification
+            logger.fdebug("RAR tool not available; accepting file without CRC check: %s" % (e,))
+            return {'status': True, 'type': 'RAR', 'quality': 'RAR file; CRC not verified (no unrar tool).'}
         except Exception as e:
             logger.fdebug("Issue working with rar file.  Likely a broken archive.")
             return {'status': False, 'type' : 'RAR', 'quality': f'Error processing rar compressed file: {e}.'}

@@ -168,6 +168,14 @@ class search_check(object):
                                     comsize_b = None
                                 else:
                                     comsize_b = helpers.human2bytes(entry['size'])
+                        elif entry['site'] == 'DDL(Easynews)':
+                            comsize_b = entry['size']
+                            if comsize_b is not None:
+                                cb2 = re.sub(r'[^0-9]', '', str(comsize_b)).strip()
+                                if cb2 == '':
+                                    comsize_b = None
+                                else:
+                                    comsize_b = helpers.human2bytes(entry['size'])
                         elif entry['site'] == 'DDL(External)':
                             comsize_b = '0' #External links ! filesize
                         elif entry['site'] == 'AirDCPP':
@@ -177,8 +185,11 @@ class search_check(object):
                             else:
                                 comsize_b = helpers.human2bytes(entry['size'])
                     except Exception:
-                        tmpsz = entry.enclosures[0]
-                        comsize_b = tmpsz['length']
+                        if hasattr(entry, 'enclosures') and entry.enclosures:
+                            tmpsz = entry.enclosures[0]
+                            comsize_b = tmpsz['length']
+                        else:
+                            comsize_b = None
 
             logger.fdebug('comsize_b: %s' % comsize_b)
             # file restriction limitation here
