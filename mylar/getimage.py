@@ -60,6 +60,29 @@ def isimage(filename):
 def comic_pages(archive):
       return sorted([name for name in archive.namelist() if isimage(name)])
 
+def extract_first_page_bytes(location):
+    """Extract the first page of a comic archive (CBZ/CBR) as raw bytes. Returns (bytes, content_type) or (None, None) on failure."""
+    if not location or not os.path.isfile(location):
+        return None, None
+    _CTYPES = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'webp': 'image/webp', 'gif': 'image/gif'}
+    try:
+        arc, _ = open_archive(location)
+        if arc is None:
+            return None, None
+        try:
+            pages = comic_pages(arc)
+            if not pages:
+                return None, None
+            data = arc.read(pages[0])
+            ext = os.path.splitext(pages[0])[1][1:].lower()
+            content_type = _CTYPES.get(ext, 'image/jpeg')
+            return data, content_type
+        finally:
+            arc.close()
+    except Exception as e:
+        logger.fdebug('extract_first_page_bytes %s: %s' % (location, e))
+        return None, None
+
 def page_count(archive):
       return len(comic_pages(archive))
 

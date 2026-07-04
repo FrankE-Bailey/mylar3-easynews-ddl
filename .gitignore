@@ -15,6 +15,7 @@ settings.json
 .DS_Store
 version.py
 env/
+comics/
 .nova/
 *.swp
 # git mergetool backup files

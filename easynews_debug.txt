@@ -1,0 +1,552 @@
+Logging to: easynews_debug.txt
+Using credentials from config: data_dir/config.ini
+======================================================================
+EASYNEWS SEARCH DEBUG
+======================================================================
+Query: Supergirl #22 (1984)
+URL:   https://members.easynews.com/2.0/search/solr-search/advanced
+
+Response status: 200
+
+--- Top-level response keys ---
+  New: int
+  baseURL: str
+  classicThumbs: int
+  data: list of 5 items
+  dlFarm: str
+  dlPort: int
+  downURL: str
+  fields: dict
+  groups: list
+  gsColumns: list
+  hInfo: int
+  hthm: int
+  largeThumb: int
+  largeThumbSize: list
+  numPages: int
+  page: int
+  perPage: str
+  results: int
+  returned: int
+  sS: str
+  sid: str
+  st: str
+  stemmed: str
+  thumbURL: str
+
+--- Download URL base (from response) ---
+  dlFarm: 'auto'
+  dlPort: 443
+
+--- Results (5 items) ---
+
+  Result #1 (raw item keys and values):
+    'acodec' => 'NONE'
+    'alangs' => None
+    'bps' => 0
+    'colid' => '71eed022aa0f816ce560acd5bc47ae4e'
+    'disposition' => '0'
+    'expires' => '&#8734;'
+    'extension' => '.cbz'
+    'fallbackURL' => '//'
+    'fn' => 'Supergirl 22 (1984-06) (digital) (OkC.O.M.P.U.T.O.-Novus-HD)'
+    'fps' => 0
+    'fullres' => '0 x 0'
+    'groups' => 'alt.binaries.comics.dcp'
+    'hash' => '325b65993f0f9d3c3d5b5f954d7cb11b071ec385f'
+    'height' => '0'
+    'hz' => 0
+    'id' => '7ab9'
+    'master' => '32'
+    'meta' => ''
+    'mid' => '<1440080510415623019$gps@gopoststuff>'
+    'nfo' => ''
+    'old_setid' => '4c8af788'
+    'origin_nsp' => 'tweaknews.nl'
+    'parset' => ''
+    'passwd' => False
+    'password' => False
+    'poster' => 'di12 <34@23.net>'
+    'primaryURL' => '//'
+    'rawSize' => 41431579
+    'reposts' => 2
+    'runtime' => 0
+    'sb' => 1
+    'sc' => False
+    'setid' => '71eed022aa0f816ce560acd5bc47ae4e'
+    'sig' => 'eNoBUACv|y9NYd0PqKHlAsnbRrIfz0LE2-7odI5DcBiWLWOU|-ncqse|SBinZm5RRNOuDyKefDrFoaLSXZ6B-3qWTy8mgZChVv-YVmPa4pUpQUcDgfXFpVMpyQ'
+    'size' => 41431579
+    'slangs' => None
+    'subject' => 'Novus - Week of 2015-08-12 [46/68] - "Supergirl 22 (1984-06) (digital) (OkC.O.M.P.U.T.O.-Novus-HD).cbz" yEnc (1/65)'
+    'theight' => 0
+    'timestamp' => 1440080524
+    'ts' => 1440080524
+    'twidth' => 0
+    'type' => 'ARCHIVE'
+    'uniq' => 'db3cae7fe5eaf4e0cae8d89751a0d7e619ca03e7'
+    'vcodec' => 'NONE'
+    'virus' => False
+    'volume' => False
+    'width' => '0'
+    'xres' => 0
+    'yres' => 0
+    '0' => '325b65993f0f9d3c3d5b5f954d7cb11b071ec385f'
+    '1' => ''
+    '10' => 'Supergirl 22 (1984-06) (digital) (OkC.O.M.P.U.T.O.-Novus-HD)'
+    '11' => '.cbz'
+    '12' => 'NONE'
+    '13' => '1'
+    '14' => '0m:0s'
+    '15' => 0
+    '16' => 0
+    '17' => 0
+    '18' => 'NONE'
+    '19' => '71eed022aa0f816ce560acd5bc47ae4e'
+    '2' => '.cbz'
+    '20' => '&#8734;'
+    '3' => '0 x 0'
+    '4' => '39.5 MB'
+    '5' => '08-20-2015 14:22:04'
+    '6' => 'Novus - Week of 2015-08-12 [46/68] - &quot;Supergirl 22 (1984-06) (digital) (OkC.O.M.P.U.T.O.-Novus-HD).cbz&quot; yEnc (1/65)'
+    '7' => 'di12 &lt;34@23.net&gt;'
+    '8' => '<1440080510415623019$gps@gopoststuff>'
+    '9' => 'alt.binaries.comics.dcp'
+  Mylar mapping: 0=hash, 2=ext, 4/rawSize=size, 5=date, 10=filename
+    hash:     '325b65993f0f9d3c3d5b5f954d7cb11b071ec385f'
+    ext:      '.cbz'
+    filename: 'Supergirl 22 (1984-06) (digital) (OkC.O.M.P.U.T.O.-Novus-HD)'
+    date:     '08-20-2015 14:22:04'
+    rawsize:  41431579
+    URL (full): https://members.easynews.com/dl/auto/443/325b65993f0f9d3c3d5b5f954d7cb11b071ec385f.cbz/Supergirl%202...
+    GET full (farm/port/filename?sig=) => status 200
+      Content-Type: application/octet-stream
+      Content-Length: 41431579
+    GET downURL only => status 400
+      body: <html><head><title>400 Error</title></head><body>400 Error</body></html>
+
+  Result #2 (raw item keys and values):
+    'acodec' => 'NONE'
+    'alangs' => None
+    'bps' => 0
+    'colid' => 'f2ccd24b392b8f0b8cd17c30558c63e6'
+    'disposition' => '0'
+    'expires' => '&#8734;'
+    'extension' => '.cbz'
+    'fallbackURL' => '//'
+    'fn' => 'Supergirl v2 022 (1984) (digital) (OkC.O.M.P.U.T.O.-Novus-HD)'
+    'fps' => 0
+    'fullres' => '0 x 0'
+    'groups' => 'alt.binaries.comics.reposts alt.binaries.pictures.comics.repost'
+    'hash' => '325b65993f0f9d3c3d5b5f954d7cb11b071ec385f'
+    'height' => '0'
+    'hz' => 0
+    'id' => '71b6'
+    'master' => '32'
+    'meta' => ''
+    'mid' => '<zNGdnTPW-rnIhFfHnZ2dnUU7-bfNnZ2d@giganews.com>'
+    'nfo' => ''
+    'old_setid' => '1db8e08c'
+    'origin_nsp' => 'giganews.com'
+    'parset' => ''
+    'passwd' => False
+    'password' => False
+    'poster' => 'Yenc@no.where.org (Snuffy)'
+    'primaryURL' => '//'
+    'rawSize' => 41431579
+    'reposts' => 3
+    'runtime' => 0
+    'sb' => 1
+    'sc' => False
+    'setid' => 'f2ccd24b392b8f0b8cd17c30558c63e6'
+    'sig' => 'eNoBUACv|4E15YEmL--yDLQpiS8dNldqPVYwlfNNZAZcBnwsRlKH3XsxcCcsVoPl51sK2HgaVWu6plO91o95MDa3cu1l5PsHHcMcAVh-6genDnI0eeiWQOMing'
+    'size' => 41431579
+    'slangs' => None
+    'subject' => '1982 - Supergirl v2 022 (1984) (digital) (OkC.O.M.P.U.T.O.-Novus-HD).cbz - [22/23]  yEnc (001/108)'
+    'theight' => 0
+    'timestamp' => 1523194238
+    'ts' => 1523194238
+    'twidth' => 0
+    'type' => 'ARCHIVE'
+    'uniq' => 'd7be92d1ec0407cee82c58fb4a7123f97413174f'
+    'vcodec' => 'NONE'
+    'virus' => False
+    'volume' => False
+    'width' => '0'
+    'xres' => 0
+    'yres' => 0
+    '0' => '325b65993f0f9d3c3d5b5f954d7cb11b071ec385f'
+    '1' => ''
+    '10' => 'Supergirl v2 022 (1984) (digital) (OkC.O.M.P.U.T.O.-Novus-HD)'
+    '11' => '.cbz'
+    '12' => 'NONE'
+    '13' => '1'
+    '14' => '0m:0s'
+    '15' => 0
+    '16' => 0
+    '17' => 0
+    '18' => 'NONE'
+    '19' => 'f2ccd24b392b8f0b8cd17c30558c63e6'
+    '2' => '.cbz'
+    '20' => '&#8734;'
+    '3' => '0 x 0'
+    '4' => '39.5 MB'
+    '5' => '04-08-2018 13:30:38'
+    '6' => '1982 - Supergirl v2 022 (1984) (digital) (OkC.O.M.P.U.T.O.-Novus-HD).cbz - [22/23]  yEnc (001/108)'
+    '7' => 'Yenc@no.where.org (Snuffy)'
+    '8' => '<zNGdnTPW-rnIhFfHnZ2dnUU7-bfNnZ2d@giganews.com>'
+    '9' => 'alt.binaries.comics.reposts alt.binaries.pictures.comics.repost'
+  Mylar mapping: 0=hash, 2=ext, 4/rawSize=size, 5=date, 10=filename
+    hash:     '325b65993f0f9d3c3d5b5f954d7cb11b071ec385f'
+    ext:      '.cbz'
+    filename: 'Supergirl v2 022 (1984) (digital) (OkC.O.M.P.U.T.O.-Novus-HD)'
+    date:     '04-08-2018 13:30:38'
+    rawsize:  41431579
+    URL (full): https://members.easynews.com/dl/auto/443/325b65993f0f9d3c3d5b5f954d7cb11b071ec385f.cbz/Supergirl%20v...
+    GET full (farm/port/filename?sig=) => status 200
+      Content-Type: application/octet-stream
+      Content-Length: 41431579
+    GET downURL only => status 400
+      body: <html><head><title>400 Error</title></head><body>400 Error</body></html>
+
+  Result #3 (raw item keys and values):
+    'acodec' => 'NONE'
+    'alangs' => None
+    'bps' => 0
+    'colid' => '16537599dfaf4ae51722e247243cfcb1'
+    'disposition' => '0'
+    'expires' => '&#8734;'
+    'extension' => '.cbz'
+    'fallbackURL' => '//'
+    'fn' => 'Supergirl 022 (1984) (Digital) (AnHeroGold-Empire)'
+    'fps' => 0
+    'fullres' => '0 x 0'
+    'groups' => 'alt.binaries.comics.dcp'
+    'hash' => '7383e3b6fea01cb852393225c0e0271703083dd38'
+    'height' => '0'
+    'hz' => 0
+    'id' => '49ce'
+    'master' => '31'
+    'meta' => ''
+    'mid' => '<1440220544742860257$gps@gopoststuff>'
+    'nfo' => ''
+    'old_setid' => '614c8975'
+    'origin_nsp' => 'tweaknews.nl'
+    'parset' => ''
+    'passwd' => False
+    'password' => False
+    'poster' => 'di12 <34@23.net>'
+    'primaryURL' => '//'
+    'rawSize' => 39869058
+    'reposts' => 1
+    'runtime' => 0
+    'sb' => 1
+    'sc' => False
+    'setid' => '16537599dfaf4ae51722e247243cfcb1'
+    'sig' => 'eNoBUACv|xifpqKQxTuHokjywUVx-dOxXNyvMdgQ-OGmem5I49KVbAKnNXqlYT6tdmLKIsblrUNsMx63parNqGLxkQIX59iyQdXUAA80NEJb0pHkBdC76cIqbw'
+    'size' => 39869058
+    'slangs' => None
+    'subject' => 'Supergirl v2 (001-023) (1982-1984)(digital)(AnHeroGold-Empire) [22/33] - "Supergirl 022 (1984) (Digital) (AnHeroGold-Empire).cbz" yEnc (1/63)'
+    'theight' => 0
+    'timestamp' => 1440220552
+    'ts' => 1440220552
+    'twidth' => 0
+    'type' => 'ARCHIVE'
+    'uniq' => 'c693a42c8ad5a4dcfc29a8c9791b35540a31ea0e'
+    'vcodec' => 'NONE'
+    'virus' => False
+    'volume' => False
+    'width' => '0'
+    'xres' => 0
+    'yres' => 0
+    '0' => '7383e3b6fea01cb852393225c0e0271703083dd38'
+    '1' => ''
+    '10' => 'Supergirl 022 (1984) (Digital) (AnHeroGold-Empire)'
+    '11' => '.cbz'
+    '12' => 'NONE'
+    '13' => '1'
+    '14' => '0m:0s'
+    '15' => 0
+    '16' => 0
+    '17' => 0
+    '18' => 'NONE'
+    '19' => '16537599dfaf4ae51722e247243cfcb1'
+    '2' => '.cbz'
+    '20' => '&#8734;'
+    '3' => '0 x 0'
+    '4' => '38.0 MB'
+    '5' => '08-22-2015 05:15:52'
+    '6' => 'Supergirl v2 (001-023) (1982-1984)(digital)(AnHeroGold-Empire) [22/33] - &quot;Supergirl 022 (1984) (Digital) (AnHeroGold-Empire).cbz&quot; yEnc (1/63)'
+    '7' => 'di12 &lt;34@23.net&gt;'
+    '8' => '<1440220544742860257$gps@gopoststuff>'
+    '9' => 'alt.binaries.comics.dcp'
+  Mylar mapping: 0=hash, 2=ext, 4/rawSize=size, 5=date, 10=filename
+    hash:     '7383e3b6fea01cb852393225c0e0271703083dd38'
+    ext:      '.cbz'
+    filename: 'Supergirl 022 (1984) (Digital) (AnHeroGold-Empire)'
+    date:     '08-22-2015 05:15:52'
+    rawsize:  39869058
+    URL (full): https://members.easynews.com/dl/auto/443/7383e3b6fea01cb852393225c0e0271703083dd38.cbz/Supergirl%200...
+    GET full (farm/port/filename?sig=) => status 200
+      Content-Type: application/octet-stream
+      Content-Length: 39869058
+    GET downURL only => status 400
+      body: <html><head><title>400 Error</title></head><body>400 Error</body></html>
+
+  Result #4 (raw item keys and values):
+    'acodec' => 'NONE'
+    'alangs' => None
+    'bps' => 0
+    'colid' => '15c7bcb85475f3be1c49c99cdde3871e'
+    'disposition' => '0'
+    'expires' => '&#8734;'
+    'extension' => '.cbz'
+    'fallbackURL' => '//'
+    'fn' => '[1970-04] Adventure Comics 392 (Supergirl) ctc'
+    'fps' => 0
+    'fullres' => '0 x 0'
+    'groups' => 'alt.binaries.pictures.comics.complete'
+    'hash' => 'c1b440900588a06a930d9d7239b1b3ac09f9436f2'
+    'height' => '0'
+    'hz' => 0
+    'id' => '1f25'
+    'master' => '06'
+    'meta' => ''
+    'mid' => '<2016012713322273033-damfino@josephmschenkcom>'
+    'nfo' => ''
+    'old_setid' => '1d7dd9e9'
+    'origin_nsp' => 'giganews.com'
+    'parset' => ''
+    'passwd' => False
+    'password' => False
+    'poster' => 'Custer Beaton <damfino@joseph.m.schenk.com>'
+    'primaryURL' => '//'
+    'rawSize' => 28159577
+    'reposts' => 2
+    'runtime' => 0
+    'sb' => 1
+    'sc' => False
+    'setid' => '15c7bcb85475f3be1c49c99cdde3871e'
+    'sig' => 'eNoBUACv|9rdTRarn5uaXMR69wTBR94ZzrE3kwLZaPxmWbiZiHlgiR5z8KHjyL6BpZGBpoT8rQWSDeNm1olysFF5olDowwEMSbpc7HSR3mVhBb9mXUkk6vYqEA'
+    'size' => 28159577
+    'slangs' => None
+    'subject' => 'Supergirl 1969-1984 [22 of 88] "[1970-04] Adventure Comics 392 (Supergirl) ctc.cbz" yEnc (1/81)'
+    'theight' => 0
+    'timestamp' => 1453902692
+    'ts' => 1453902692
+    'twidth' => 0
+    'type' => 'ARCHIVE'
+    'uniq' => 'd051327cf0a6c1b9ee20baee9e172c6228d57a1a'
+    'vcodec' => 'NONE'
+    'virus' => False
+    'volume' => False
+    'width' => '0'
+    'xres' => 0
+    'yres' => 0
+    '0' => 'c1b440900588a06a930d9d7239b1b3ac09f9436f2'
+    '1' => ''
+    '10' => '[1970-04] Adventure Comics 392 (Supergirl) ctc'
+    '11' => '.cbz'
+    '12' => 'NONE'
+    '13' => '1'
+    '14' => '0m:0s'
+    '15' => 0
+    '16' => 0
+    '17' => 0
+    '18' => 'NONE'
+    '19' => '15c7bcb85475f3be1c49c99cdde3871e'
+    '2' => '.cbz'
+    '20' => '&#8734;'
+    '3' => '0 x 0'
+    '4' => '26.9 MB'
+    '5' => '01-27-2016 13:51:32'
+    '6' => 'Supergirl 1969-1984 [22 of 88] &quot;[1970-04] Adventure Comics 392 (Supergirl) ctc.cbz&quot; yEnc (1/81)'
+    '7' => 'Custer Beaton &lt;damfino@joseph.m.schenk.com&gt;'
+    '8' => '<2016012713322273033-damfino@josephmschenkcom>'
+    '9' => 'alt.binaries.pictures.comics.complete'
+  Mylar mapping: 0=hash, 2=ext, 4/rawSize=size, 5=date, 10=filename
+    hash:     'c1b440900588a06a930d9d7239b1b3ac09f9436f2'
+    ext:      '.cbz'
+    filename: '[1970-04] Adventure Comics 392 (Supergirl) ctc'
+    date:     '01-27-2016 13:51:32'
+    rawsize:  28159577
+    URL (full): https://members.easynews.com/dl/auto/443/c1b440900588a06a930d9d7239b1b3ac09f9436f2.cbz/%5B1970-04%5D...
+    GET full (farm/port/filename?sig=) => status 200
+      Content-Type: application/octet-stream
+      Content-Length: 28159577
+    GET downURL only => status 400
+      body: <html><head><title>400 Error</title></head><body>400 Error</body></html>
+
+  Result #5 (raw item keys and values):
+    'acodec' => 'NONE'
+    'alangs' => None
+    'bps' => 0
+    'colid' => '15c7bcb85475f3be1c49c99cdde3871e'
+    'disposition' => '0'
+    'expires' => '&#8734;'
+    'extension' => '.cbz'
+    'fallbackURL' => '//'
+    'fn' => '[1984-06] Supergirl 020'
+    'fps' => 0
+    'fullres' => '0 x 0'
+    'groups' => 'alt.binaries.pictures.comics.complete'
+    'hash' => '2732442e42450f4ec5b78a30a31b21aa05dd1d799'
+    'height' => '0'
+    'hz' => 0
+    'id' => '61df'
+    'master' => '03'
+    'meta' => ''
+    'mid' => '<2016012717584028922-damfino@josephmschenkcom>'
+    'nfo' => ''
+    'old_setid' => '1d7dd9e9'
+    'origin_nsp' => 'giganews.com'
+    'parset' => ''
+    'passwd' => False
+    'password' => False
+    'poster' => 'Custer Beaton <damfino@joseph.m.schenk.com>'
+    'primaryURL' => '//'
+    'rawSize' => 7596988
+    'reposts' => 2
+    'runtime' => 0
+    'sb' => 1
+    'sc' => False
+    'setid' => '15c7bcb85475f3be1c49c99cdde3871e'
+    'sig' => 'eNoBUACv|wwZFVJabrJ8NzfwZi2iBDlZJO|Ks1KaB7TcAqUSQPBurjsJYboZkStRU38fvRjYZBytvb9p3qyiuD7uvNcZ4Ew9akmOjG3utr0tPXcxsmUCWOIj5A'
+    'size' => 7596988
+    'slangs' => None
+    'subject' => 'Supergirl 1969-1984 [84 of 88] "[1984-06] Supergirl 020.cbz" yEnc (1/22)'
+    'theight' => 0
+    'timestamp' => 1453917864
+    'ts' => 1453917864
+    'twidth' => 0
+    'type' => 'ARCHIVE'
+    'uniq' => '01a30488443cc8d235412926b8298a03686f6dd6'
+    'vcodec' => 'NONE'
+    'virus' => False
+    'volume' => False
+    'width' => '0'
+    'xres' => 0
+    'yres' => 0
+    '0' => '2732442e42450f4ec5b78a30a31b21aa05dd1d799'
+    '1' => ''
+    '10' => '[1984-06] Supergirl 020'
+    '11' => '.cbz'
+    '12' => 'NONE'
+    '13' => '1'
+    '14' => '0m:0s'
+    '15' => 0
+    '16' => 0
+    '17' => 0
+    '18' => 'NONE'
+    '19' => '15c7bcb85475f3be1c49c99cdde3871e'
+    '2' => '.cbz'
+    '20' => '&#8734;'
+    '3' => '0 x 0'
+    '4' => '7.2 MB'
+    '5' => '01-27-2016 18:04:24'
+    '6' => 'Supergirl 1969-1984 [84 of 88] &quot;[1984-06] Supergirl 020.cbz&quot; yEnc (1/22)'
+    '7' => 'Custer Beaton &lt;damfino@joseph.m.schenk.com&gt;'
+    '8' => '<2016012717584028922-damfino@josephmschenkcom>'
+    '9' => 'alt.binaries.pictures.comics.complete'
+  Mylar mapping: 0=hash, 2=ext, 4/rawSize=size, 5=date, 10=filename
+    hash:     '2732442e42450f4ec5b78a30a31b21aa05dd1d799'
+    ext:      '.cbz'
+    filename: '[1984-06] Supergirl 020'
+    date:     '01-27-2016 18:04:24'
+    rawsize:  7596988
+    URL (full): https://members.easynews.com/dl/auto/443/2732442e42450f4ec5b78a30a31b21aa05dd1d799.cbz/%5B1984-06%5D...
+    GET full (farm/port/filename?sig=) => status 200
+      Content-Type: application/octet-stream
+      Content-Length: 7596988
+    GET downURL only => status 400
+      body: <html><head><title>400 Error</title></head><body>400 Error</body></html>
+
+--- Full JSON response (top-level, data truncated) ---
+{
+  "sid": "3b9b903f98d1b2a575df63d2585675bc58889e91",
+  "results": 5,
+  "New": 0,
+  "perPage": "250",
+  "numPages": 1,
+  "baseURL": "https://members.easynews.com",
+  "dlFarm": "auto",
+  "dlPort": 443,
+  "downURL": "https://members.easynews.com/dl",
+  "thumbURL": "https://th.easynews.com/thumbnails-",
+  "page": 1,
+  "groups": [
+    {
+      "alt.binaries.comics.dcp": 2
+    },
+    {
+      "alt.binaries.pictures.comics.complete": 2
+    },
+    {
+      "alt.binaries.comics.reposts": 1
+    },
+    {
+      "alt.binaries.pictures.comics.repost": 1
+    }
+  ],
+  "data": "[5 items - see above for each item]",
+  "returned": 5,
+  "classicThumbs": 0,
+  "fields": {
+    "6": "Subject",
+    "4": "Size",
+    "9": "Group",
+    "5": "Post Date",
+    "7": "Poster",
+    "3": "Resolution",
+    "10": "Filename",
+    "2": "Extension",
+    "20": "Expire Date",
+    "12": "Video Codec",
+    "18": "Audio Codec",
+    "14": "Runtime",
+    "15": "BPS",
+    "16": "Sample Rate",
+    "17": "FPS",
+    "FullThumb": "Full Thumb"
+  },
+  "hthm": 0,
+  "hInfo": 0,
+  "st": "adv",
+  "sS": "0",
+  "stemmed": "true",
+  "largeThumb": 0,
+  "largeThumbSize": [
+    "268x206"
+  ],
+  "gsColumns": [
+    {
+      "num": 10,
+      "name": "filename"
+    },
+    {
+      "num": 6,
+      "name": "subject"
+    },
+    {
+      "num": 4,
+      "name": "size"
+    },
+    {
+      "num": 9,
+      "name": "group"
+    },
+    {
+      "num": 5,
+      "name": "time"
+    },
+    {
+      "num": 7,
+      "name": "poster"
+    },
+    {
+      "num": -1,
+      "name": "set"
+    }
+  ]
+}
+
+Done.

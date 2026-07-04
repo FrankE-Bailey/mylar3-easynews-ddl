@@ -40,6 +40,7 @@ import traceback
 import time
 import random
 import threading
+from io import BytesIO
 import csv
 import platform
 import urllib.request, urllib.parse, urllib.error
@@ -929,7 +930,7 @@ class WebInterface(object):
     loadIssueDetails.exposed = True
 
     def loadBookshelfIssues(self, ComicID=None, **kwargs):
-        """Return issue list for bookshelf view: only issues we have (Downloaded/Archived). IssueID, Issue_Number, IssueName, Status, cover_url (from DB ImageURL)."""
+        """Return issue list for bookshelf view: only issues we have (Downloaded/Archived). Prefer cover from comic file, else DB ImageURL."""
         if ComicID is None:
             ComicID = kwargs.get('ComicID')
         if not ComicID:
@@ -938,33 +939,70 @@ class WebInterface(object):
         logger.info('[BOOKSHELF] loadBookshelfIssues ComicID=%s' % ComicID)
         try:
             myDB = db.DBConnection()
-            query = "SELECT IssueID, Issue_Number, IssueName, Status, ImageURL, Int_IssueNumber FROM issues WHERE ComicID=? AND Status IN ('Downloaded', 'Archived') ORDER BY Int_IssueNumber ASC"
+            query = "SELECT a.ComicLocation, b.IssueID, b.Issue_Number, b.IssueName, b.Status, b.ImageURL, b.Location, b.Int_IssueNumber FROM comics a LEFT JOIN issues b ON a.ComicID=b.ComicID WHERE b.ComicID=? AND b.Status IN ('Downloaded', 'Archived') ORDER BY b.Int_IssueNumber ASC"
             issueslist = myDB.select(query, [ComicID])
             issues = []
+            secondary_folders = None
+            if mylar.CONFIG.MULTIPLE_DEST_DIRS:
+                try:
+                    first = issueslist[0] if issueslist else None
+                    if not first and getattr(mylar.CONFIG, 'ANNUALS_ON', False):
+                        ann = myDB.selectone("SELECT a.ComicLocation FROM comics a LEFT JOIN annuals b ON a.ComicID=b.ComicID WHERE b.ComicID=? AND NOT b.Deleted", [ComicID])
+                        first = ann
+                    if first:
+                        comicloc = first.get('ComicLocation')
+                        if comicloc and os.path.exists(os.path.join(mylar.CONFIG.MULTIPLE_DEST_DIRS, os.path.basename(comicloc))):
+                            secondary_folders = os.path.join(mylar.CONFIG.MULTIPLE_DEST_DIRS, os.path.basename(comicloc))
+                        elif comicloc:
+                            ff = mylar.filers.FileHandlers(ComicID=ComicID)
+                            secondary_folders = ff.secondary_folders(comicloc)
+                except Exception:
+                    pass
             for row in issueslist:
-                x = dict(row)  # sqlite3.Row has no .get(); convert to dict
+                x = dict(row)
                 if x.get('IssueID') is None and x.get('Issue_Number') is None:
                     continue
+                cover_url = None
+                loc = x.get('Location')
+                comicloc = x.get('ComicLocation')
+                if loc and comicloc:
+                    pathfile = os.path.join(comicloc, loc)
+                    if not os.path.isfile(pathfile) and secondary_folders:
+                        pathfile = os.path.join(secondary_folders, loc)
+                    if os.path.isfile(pathfile):
+                        cover_url = 'getIssueCoverImage?IssueID=%s' % x.get('IssueID')
+                if not cover_url and x.get('ImageURL'):
+                    cover_url = x.get('ImageURL')
                 issues.append({
                     'IssueID': x.get('IssueID'),
                     'Issue_Number': x.get('Issue_Number') or '',
                     'IssueName': x.get('IssueName') or '',
                     'Status': x.get('Status') or '',
-                    'cover_url': x.get('ImageURL') or None,
+                    'cover_url': cover_url,
                     'sort_key': x.get('Int_IssueNumber') if x.get('Int_IssueNumber') is not None else 0,
                 })
             if getattr(mylar.CONFIG, 'ANNUALS_ON', False):
-                annualslist = myDB.select(
-                    "SELECT IssueID, Issue_Number, IssueName, Status, Int_IssueNumber FROM annuals WHERE ComicID=? AND NOT Deleted AND Status IN ('Downloaded', 'Archived') ORDER BY Int_IssueNumber ASC",
-                    [ComicID])
+                annualsquery = "SELECT a.ComicLocation, b.IssueID, b.Issue_Number, b.IssueName, b.Status, b.ImageURL, b.Location, b.Int_IssueNumber FROM comics a LEFT JOIN annuals b ON a.ComicID=b.ComicID WHERE b.ComicID=? AND NOT b.Deleted AND b.Status IN ('Downloaded', 'Archived') ORDER BY b.Int_IssueNumber ASC"
+                annualslist = myDB.select(annualsquery, [ComicID])
                 for row in annualslist:
                     a = dict(row)
+                    cover_url = None
+                    loc = a.get('Location')
+                    comicloc = a.get('ComicLocation')
+                    if loc and comicloc:
+                        pathfile = os.path.join(comicloc, loc)
+                        if not os.path.isfile(pathfile) and secondary_folders:
+                            pathfile = os.path.join(secondary_folders, loc)
+                        if os.path.isfile(pathfile):
+                            cover_url = 'getIssueCoverImage?IssueID=%s' % a.get('IssueID')
+                    if not cover_url and a.get('ImageURL'):
+                        cover_url = a.get('ImageURL')
                     issues.append({
                         'IssueID': a.get('IssueID'),
                         'Issue_Number': a.get('Issue_Number') or '',
                         'IssueName': a.get('IssueName') or '',
                         'Status': a.get('Status') or '',
-                        'cover_url': None,
+                        'cover_url': cover_url,
                         'sort_key': a.get('Int_IssueNumber') if a.get('Int_IssueNumber') is not None else 0,
                     })
             issues.sort(key=lambda i: i.get('sort_key', 0))
@@ -976,12 +1014,57 @@ class WebInterface(object):
             return json.dumps([])
     loadBookshelfIssues.exposed = True
 
+    def _get_issue_file_path(self, IssueID):
+        """Resolve file path for an issue (issues or annuals table). Returns full path or None."""
+        myDB = db.DBConnection()
+        issue = myDB.selectone('SELECT a.ComicLocation, b.Location, b.ComicID FROM comics a LEFT JOIN issues b ON a.ComicID=b.ComicID WHERE b.IssueID=?', [IssueID]).fetchone()
+        if not issue:
+            issue = myDB.selectone('SELECT a.ComicLocation, b.Location, b.ComicID FROM comics a LEFT JOIN annuals b ON a.ComicID=b.ComicID WHERE b.IssueID=? AND NOT b.Deleted', [IssueID]).fetchone()
+        if not issue or not issue.get('Location') or not issue.get('ComicLocation'):
+            return None
+        pathfile = os.path.join(issue['ComicLocation'], issue['Location'])
+        if os.path.isfile(pathfile):
+            return pathfile
+        secondary_folders = None
+        if mylar.CONFIG.MULTIPLE_DEST_DIRS:
+            try:
+                if os.path.exists(os.path.join(mylar.CONFIG.MULTIPLE_DEST_DIRS, os.path.basename(issue['ComicLocation']))):
+                    secondary_folders = os.path.join(mylar.CONFIG.MULTIPLE_DEST_DIRS, os.path.basename(issue['ComicLocation']))
+                else:
+                    ff = mylar.filers.FileHandlers(ComicID=issue['ComicID'])
+                    secondary_folders = ff.secondary_folders(issue['ComicLocation'])
+            except Exception:
+                pass
+        if secondary_folders and os.path.isfile(os.path.join(secondary_folders, issue['Location'])):
+            return os.path.join(secondary_folders, issue['Location'])
+        return None
+
+    def getIssueCoverImage(self, IssueID):
+        """Serve cover image extracted from the comic file (CBZ/CBR). Primary source for bookshelf covers; avoids CV API."""
+        if not IssueID:
+            raise cherrypy.HTTPError(404)
+        pathfile = self._get_issue_file_path(IssueID)
+        if not pathfile:
+            raise cherrypy.HTTPError(404)
+        data, content_type = mylar.getimage.extract_first_page_bytes(pathfile)
+        if not data:
+            raise cherrypy.HTTPError(404)
+        from cherrypy.lib.static import serve_fileobj
+        return serve_fileobj(BytesIO(data), content_type=content_type)
+    getIssueCoverImage.exposed = True
+
     def getIssueCover(self, IssueID):
-        """Return Comic Vine cover URL for an issue (from DB if present, else fetch from CV API). Used for bookshelf on-demand loading."""
+        """Return cover URL for an issue. Prefer file-based extraction (getIssueCoverImage), else DB ImageURL, else CV API."""
         if not IssueID:
             return json.dumps({'image_url': None})
+        # Prefer cover from comic file; avoids CV API
+        if self._get_issue_file_path(IssueID):
+            return json.dumps({'image_url': 'getIssueCoverImage?IssueID=%s' % IssueID})
         myDB = db.DBConnection()
         row = myDB.selectone('SELECT ImageURL FROM issues WHERE IssueID=?', [IssueID]).fetchone()
+        if row and row.get('ImageURL'):
+            return json.dumps({'image_url': row['ImageURL']})
+        row = myDB.selectone('SELECT ImageURL FROM annuals WHERE IssueID=? AND NOT Deleted', [IssueID]).fetchone()
         if row and row.get('ImageURL'):
             return json.dumps({'image_url': row['ImageURL']})
         try:

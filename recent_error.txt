@@ -1,0 +1,55 @@
+14-Feb-2026 14:28:09 - INFO :: mylar.addComictoDB.225 : mass-add : Now adding/updating: 2000 AD
+14-Feb-2026 14:28:09 - INFO :: mylar.addComictoDB.289 : mass-add : Sucessfully retrieved details for 2000 AD
+14-Feb-2026 14:28:09 - INFO :: mylar.addComictoDB.300 : mass-add : Previous version detected as None - seeing if update required
+14-Feb-2026 14:28:09 - DEBUG :: mylar.addComictoDB.321 : mass-add : comicIssues: 2469
+14-Feb-2026 14:28:09 - DEBUG :: mylar.addComictoDB.322 : mass-add : seriesyear: 1977 / currentyear: 2026
+14-Feb-2026 14:28:09 - DEBUG :: mylar.addComictoDB.323 : mass-add : comicType: Print
+14-Feb-2026 14:28:09 - ERROR :: mylar.excepthook.315 : mass-add : Uncaught exception: Traceback (most recent call last):
+  File "/home/franke/mylar3/mylar/logger.py", line 337, in new_run
+    old_run(*args, **kwargs)
+  File "/usr/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/franke/mylar3/mylar/importer.py", line 71, in addvialist
+    addComictoDB(item['comicid'])
+  File "/home/franke/mylar3/mylar/importer.py", line 336, in addComictoDB
+    comicname_filesafe = helpers.filesafe(u_comicnm)
+  File "/home/franke/mylar3/mylar/helpers.py", line 1221, in filesafe
+    comicname_filesafe = re.sub(r'[\:\'\"\,\?\!\\\]', '', u_comic.decode('utf-8'))
+  File "/usr/lib/python3.10/re.py", line 209, in sub
+    return _compile(pattern, flags).sub(repl, string, count)
+  File "/usr/lib/python3.10/re.py", line 303, in _compile
+    p = sre_compile.compile(pattern, flags)
+  File "/usr/lib/python3.10/sre_compile.py", line 788, in compile
+    p = sre_parse.parse(p, flags)
+  File "/usr/lib/python3.10/sre_parse.py", line 955, in parse
+    p = _parse_sub(source, state, flags & SRE_FLAG_VERBOSE, 0)
+  File "/usr/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/usr/lib/python3.10/sre_parse.py", line 550, in _parse
+    raise source.error("unterminated character set",
+re.error: unterminated character set at position 0
+
+Traceback (most recent call last):
+  File "/home/franke/mylar3/mylar/logger.py", line 337, in new_run
+    old_run(*args, **kwargs)
+  File "/usr/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/franke/mylar3/mylar/importer.py", line 71, in addvialist
+    addComictoDB(item['comicid'])
+  File "/home/franke/mylar3/mylar/importer.py", line 336, in addComictoDB
+    comicname_filesafe = helpers.filesafe(u_comicnm)
+  File "/home/franke/mylar3/mylar/helpers.py", line 1221, in filesafe
+    comicname_filesafe = re.sub(r'[\:\'\"\,\?\!\\\]', '', u_comic.decode('utf-8'))
+  File "/usr/lib/python3.10/re.py", line 209, in sub
+    return _compile(pattern, flags).sub(repl, string, count)
+  File "/usr/lib/python3.10/re.py", line 303, in _compile
+    p = sre_compile.compile(pattern, flags)
+  File "/usr/lib/python3.10/sre_compile.py", line 788, in compile
+    p = sre_parse.parse(p, flags)
+  File "/usr/lib/python3.10/sre_parse.py", line 955, in parse
+    p = _parse_sub(source, state, flags & SRE_FLAG_VERBOSE, 0)
+  File "/usr/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/usr/lib/python3.10/sre_parse.py", line 550, in _parse
+    raise source.error("unterminated character set",
+re.error: unterminated character set at position 0
