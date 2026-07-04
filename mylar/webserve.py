@@ -74,6 +74,7 @@ from mylar import (
     search,
     series_metadata,
     updater,
+    variant_covers,
     weeklypull,
 )
 from mylar.auth import (
@@ -993,6 +994,83 @@ class WebInterface(object):
             logger.fdebug('getIssueCover %s: %s' % (IssueID, e))
         return json.dumps({'image_url': None})
     getIssueCover.exposed = True
+
+    def loadVariantCovers(self, ComicID=None, **kwargs):
+        if ComicID is None:
+            ComicID = kwargs.get('ComicID')
+        if not ComicID:
+            return json.dumps([])
+        try:
+            rows = variant_covers.get_series_variants(ComicID)
+            payload = []
+            for row in rows:
+                r = dict(row)
+                thumb = r.get('ThumbPath')
+                if thumb and os.path.isfile(thumb):
+                    thumb_url = 'variantCoverThumb?VariantID=%s' % r.get('VariantID')
+                else:
+                    thumb_url = None
+                payload.append({
+                    'VariantID': r.get('VariantID'),
+                    'IssueID': r.get('IssueID'),
+                    'Issue_Number': r.get('Issue_Number') or '',
+                    'Descriptor': r.get('Descriptor') or '',
+                    'Filename': r.get('Filename') or '',
+                    'ComicSize': r.get('ComicSize') or '',
+                    'CoverOnly': r.get('CoverOnly'),
+                    'thumb_url': thumb_url,
+                })
+            return json.dumps(payload)
+        except Exception as e:
+            logger.exception('[VARIANT-COVERS] loadVariantCovers failed: %s' % e)
+            return json.dumps([])
+    loadVariantCovers.exposed = True
+
+    def scanVariantCovers(self, ComicID=None, **kwargs):
+        if ComicID is None:
+            ComicID = kwargs.get('ComicID')
+        if not ComicID:
+            return json.dumps({'success': False, 'count': 0})
+        try:
+            count = variant_covers.scan_series_variant_covers(ComicID)
+            return json.dumps({'success': True, 'count': count})
+        except Exception as e:
+            logger.warn('[VARIANT-COVERS] scanVariantCovers failed: %s' % e)
+            return json.dumps({'success': False, 'count': 0, 'error': str(e)})
+    scanVariantCovers.exposed = True
+
+    def variantCoverThumb(self, VariantID=None, **kwargs):
+        if VariantID is None:
+            VariantID = kwargs.get('VariantID')
+        cherrypy.response.headers['Content-Type'] = 'image/jpeg'
+        if not VariantID:
+            cherrypy.response.status = 404
+            return b''
+        myDB = db.DBConnection()
+        row = myDB.selectone(
+            'SELECT Location, ThumbPath FROM variant_covers WHERE VariantID=?',
+            [VariantID],
+        ).fetchone()
+        if row is None:
+            cherrypy.response.status = 404
+            return b''
+        thumb = row.get('ThumbPath')
+        if not thumb or not os.path.isfile(thumb):
+            thumb = variant_covers.ensure_variant_thumbnail(
+                row['Location'], variant_id=VariantID
+            )
+            if thumb:
+                myDB.upsert('variant_covers', {'ThumbPath': thumb}, {'VariantID': VariantID})
+        if not thumb or not os.path.isfile(thumb):
+            cherrypy.response.status = 404
+            return b''
+        try:
+            with open(thumb, 'rb') as fh:
+                return fh.read()
+        except Exception:
+            cherrypy.response.status = 404
+            return b''
+    variantCoverThumb.exposed = True
 
     def loadAnnualDetails(self, ComicID=None, iDisplayStart=0, iDisplayLength=25, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         #logger.info('comicid: %s' % ComicID)

@@ -24,7 +24,7 @@ import sys
 import calendar
 
 import mylar
-from mylar import db, logger, helpers, filechecker
+from mylar import db, logger, helpers, filechecker, variant_covers
 
 def addvialist(queue):
     while True:
@@ -1970,6 +1970,10 @@ def forceRescan(ComicID, archive=None, module=None, recheck=False):
     if mylar.CONFIG.ENFORCE_PERMS:
         logger.fdebug(module + ' Ensuring permissions/ownership enforced for series: ' + rescan['ComicName'])
         filechecker.setperms(rescan['ComicLocation'])
+    try:
+        variant_covers.scan_series_variant_covers(ComicID)
+    except Exception as err:
+        logger.warn('%s variant cover scan failed: %s' % (module, err))
     logger.info(module + ' I have physically found ' + str(foundcount) + ' issues, ignored ' + str(ignorecount) + ' issues, snatched ' + str(snatchedcount) + ' issues, and accounted for ' + str(totalarc) + ' in an Archived state [ Total Issue Count: ' + str(havefiles) + ' / ' + str(combined_total) + ' ]')
 
 def totals(ComicID, havefiles=None, totalfiles=None, module=None, issueid=None, file=None, recheck=False):

@@ -861,6 +861,7 @@ def dbcheck():
     c.execute('CREATE TABLE IF NOT EXISTS tmp_searches (query_id INTEGER, comicid INTEGER, comicname TEXT, publisher TEXT, publisherimprint TEXT, comicyear TEXT, issues TEXT, volume TEXT, deck TEXT, url TEXT, type TEXT, cvarcid TEXT, arclist TEXT, description TEXT, haveit TEXT, mode TEXT, searchtype TEXT, comicimage TEXT, thumbimage TEXT, PRIMARY KEY (query_id, comicid))')
     c.execute('CREATE TABLE IF NOT EXISTS notifs(session_id INT, date TEXT, event TEXT, comicid TEXT, comicname TEXT, issuenumber TEXT, seriesyear TEXT, status TEXT, message TEXT, PRIMARY KEY (session_id, date))')
     c.execute('CREATE TABLE IF NOT EXISTS provider_searches(id INTEGER UNIQUE, provider TEXT UNIQUE, type TEXT, lastrun INTEGER, active TEXT, hits INTEGER DEFAULT 0)')
+    c.execute('CREATE TABLE IF NOT EXISTS variant_covers (VariantID TEXT UNIQUE, ComicID TEXT, IssueID TEXT, Issue_Number TEXT, Descriptor TEXT, Filename TEXT, Location TEXT UNIQUE, ComicSize TEXT, CoverOnly INTEGER, ThumbPath TEXT, DateAdded TEXT, DateUpdated TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS mylar_info(DatabaseVersion INTEGER PRIMARY KEY)')
     conn.commit
     c.close
@@ -868,6 +869,7 @@ def dbcheck():
     #create some indexes
     c.execute('CREATE INDEX IF NOT EXISTS issues_id on issues(IssueID)')
     c.execute('CREATE INDEX IF NOT EXISTS comics_id on comics(ComicID)')
+    c.execute('CREATE INDEX IF NOT EXISTS variant_covers_comicid on variant_covers(ComicID)')
 
     #might enable these at a later date.
     #c.execute('''PRAGMA synchronous = EXTRA''')
