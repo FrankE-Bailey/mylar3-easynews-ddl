@@ -631,14 +631,6 @@ def provider_order(initial_run=False):
         ):
             ddlprovider.append('DDL(External)')
             ddls+=1
-    if all(
-       [
-            mylar.CONFIG.ENABLE_AIRDCPP is True,
-            not helpers.block_provider_check('AirDCPP'),
-       ]
-    ):
-        ddlprovider.append('AirDCPP')
-        ddls+=1
 
         if all(
             [
@@ -648,6 +640,15 @@ def provider_order(initial_run=False):
         ):
             ddlprovider.append('DDL(Easynews)')
             ddls+=1
+
+    if all(
+       [
+            mylar.CONFIG.ENABLE_AIRDCPP is True,
+            not helpers.block_provider_check('AirDCPP'),
+       ]
+    ):
+        ddlprovider.append('AirDCPP')
+        ddls+=1
 
     if initial_run:
         logger.fdebug('nzbprovider(s): %s' % nzbprovider)

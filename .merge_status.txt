@@ -1,0 +1,23 @@
+=== MERGE RESULT ===
+SUCCESS: fast-forward merge feature/variant-covers into test/all-features
+
+=== FINAL BRANCH ===
+test/all-features
+
+=== GIT LOG -3 ===
+0d9e4809 Add variant cover inventory: detection, DB, scan, UI tab
+8423826a Merge branch 'feature/bookshelf-view' into test/all-features
+821086fe Merge branch 'fix/airdcpp-download-path' into test/all-features
+
+=== GIT STATUS -SB ===
+## test/all-features
+ M mylar/search.py
+?? .claude/
+?? .merge_status.txt
+?? .mylar_maintenance.db
+?? ".\357\201\234Comics/"
+?? "Variant filenames.txt"
+
+=== MERGE DETAIL ===
+Committed on feature/variant-covers: 0d9e4809 Add variant cover inventory: detection, DB, scan, UI tab
+test/all-features fast-forwarded 8423826a..0d9e4809

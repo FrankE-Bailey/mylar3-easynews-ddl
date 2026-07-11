@@ -1635,6 +1635,8 @@ class FileChecker(object):
         return file.find(findchar, lastpos)
 
     def traverse_directories(self, dir):
+        from mylar import variant_covers
+
         filelist = []
         comic_ext = ('.cbr','.cbz','.cb7','.pdf')
         comic_ext = tuple(x for x in comic_ext if x not in mylar.CONFIG.IGNORE_SEARCH_WORDS)
@@ -1649,6 +1651,7 @@ class FileChecker(object):
                                    'crc':       pp['crc']})
 
         for dirname, subs, files in os.walk(dir):
+            variant_covers.prune_variant_subdirs(subs)
 
             for fname in files:
                 if dirname == dir:

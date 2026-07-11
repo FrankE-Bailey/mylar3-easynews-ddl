@@ -941,17 +941,20 @@ class WebInterface(object):
             myDB = db.DBConnection()
             query = "SELECT IssueID, Issue_Number, IssueName, Status, ImageURL, Int_IssueNumber FROM issues WHERE ComicID=? AND Status IN ('Downloaded', 'Archived') ORDER BY Int_IssueNumber ASC"
             issueslist = myDB.select(query, [ComicID])
+            variant_counts = variant_covers.variant_count_by_comic(ComicID)
             issues = []
             for row in issueslist:
                 x = dict(row)  # sqlite3.Row has no .get(); convert to dict
                 if x.get('IssueID') is None and x.get('Issue_Number') is None:
                     continue
+                issue_id = x.get('IssueID')
                 issues.append({
-                    'IssueID': x.get('IssueID'),
+                    'IssueID': issue_id,
                     'Issue_Number': x.get('Issue_Number') or '',
                     'IssueName': x.get('IssueName') or '',
                     'Status': x.get('Status') or '',
                     'cover_url': x.get('ImageURL') or None,
+                    'variant_count': variant_counts.get(issue_id, 0),
                     'sort_key': x.get('Int_IssueNumber') if x.get('Int_IssueNumber') is not None else 0,
                 })
             if getattr(mylar.CONFIG, 'ANNUALS_ON', False):
@@ -960,12 +963,14 @@ class WebInterface(object):
                     [ComicID])
                 for row in annualslist:
                     a = dict(row)
+                    issue_id = a.get('IssueID')
                     issues.append({
-                        'IssueID': a.get('IssueID'),
+                        'IssueID': issue_id,
                         'Issue_Number': a.get('Issue_Number') or '',
                         'IssueName': a.get('IssueName') or '',
                         'Status': a.get('Status') or '',
                         'cover_url': None,
+                        'variant_count': variant_counts.get(issue_id, 0),
                         'sort_key': a.get('Int_IssueNumber') if a.get('Int_IssueNumber') is not None else 0,
                     })
             issues.sort(key=lambda i: i.get('sort_key', 0))
@@ -1001,30 +1006,45 @@ class WebInterface(object):
         if not ComicID:
             return json.dumps([])
         try:
+            myDB = db.DBConnection()
+            comic = myDB.selectone('SELECT ComicLocation FROM comics WHERE ComicID=?', [ComicID]).fetchone()
+            comic_loc = comic['ComicLocation'] if comic else None
             rows = variant_covers.get_series_variants(ComicID)
-            payload = []
-            for row in rows:
-                r = dict(row)
-                thumb = r.get('ThumbPath')
-                if thumb and os.path.isfile(thumb):
-                    thumb_url = 'variantCoverThumb?VariantID=%s' % r.get('VariantID')
-                else:
-                    thumb_url = None
-                payload.append({
-                    'VariantID': r.get('VariantID'),
-                    'IssueID': r.get('IssueID'),
-                    'Issue_Number': r.get('Issue_Number') or '',
-                    'Descriptor': r.get('Descriptor') or '',
-                    'Filename': r.get('Filename') or '',
-                    'ComicSize': r.get('ComicSize') or '',
-                    'CoverOnly': r.get('CoverOnly'),
-                    'thumb_url': thumb_url,
-                })
+            payload = [
+                variant_covers.build_variant_payload(row, comic_loc=comic_loc, myDB=myDB)
+                for row in rows
+            ]
             return json.dumps(payload)
         except Exception as e:
             logger.exception('[VARIANT-COVERS] loadVariantCovers failed: %s' % e)
             return json.dumps([])
     loadVariantCovers.exposed = True
+
+    def loadIssueVariants(self, IssueID=None, **kwargs):
+        if IssueID is None:
+            IssueID = kwargs.get('IssueID')
+        if not IssueID:
+            return json.dumps([])
+        try:
+            myDB = db.DBConnection()
+            issue = myDB.selectone(
+                'SELECT ComicID FROM issues WHERE IssueID=? UNION '
+                'SELECT ComicID FROM annuals WHERE IssueID=? AND NOT Deleted',
+                [IssueID, IssueID],
+            ).fetchone()
+            comic_loc = None
+            if issue:
+                comic = myDB.selectone(
+                    'SELECT ComicLocation FROM comics WHERE ComicID=?',
+                    [issue['ComicID']],
+                ).fetchone()
+                comic_loc = comic['ComicLocation'] if comic else None
+            payload = variant_covers.get_variants_for_issue(IssueID, comic_loc=comic_loc)
+            return json.dumps(payload)
+        except Exception as e:
+            logger.exception('[VARIANT-COVERS] loadIssueVariants failed: %s' % e)
+            return json.dumps([])
+    loadIssueVariants.exposed = True
 
     def scanVariantCovers(self, ComicID=None, **kwargs):
         if ComicID is None:
@@ -1040,37 +1060,58 @@ class WebInterface(object):
     scanVariantCovers.exposed = True
 
     def variantCoverThumb(self, VariantID=None, **kwargs):
+        return self._serve_variant_cover(VariantID, kwargs, max_width=600)
+    variantCoverThumb.exposed = True
+
+    def variantCoverImage(self, VariantID=None, **kwargs):
+        return self._serve_variant_cover(VariantID, kwargs, max_width=None)
+    variantCoverImage.exposed = True
+
+    def _serve_variant_cover(self, VariantID, kwargs, max_width=600):
+        from cherrypy.lib.static import serve_file
+
         if VariantID is None:
             VariantID = kwargs.get('VariantID')
-        cherrypy.response.headers['Content-Type'] = 'image/jpeg'
         if not VariantID:
-            cherrypy.response.status = 404
-            return b''
+            raise cherrypy.HTTPError(404)
         myDB = db.DBConnection()
         row = myDB.selectone(
-            'SELECT Location, ThumbPath FROM variant_covers WHERE VariantID=?',
+            'SELECT Location, ThumbPath, ComicID, Filename FROM variant_covers WHERE VariantID=?',
             [VariantID],
         ).fetchone()
         if row is None:
-            cherrypy.response.status = 404
-            return b''
-        thumb = row.get('ThumbPath')
-        if not thumb or not os.path.isfile(thumb):
-            thumb = variant_covers.ensure_variant_thumbnail(
-                row['Location'], variant_id=VariantID
+            raise cherrypy.HTTPError(404)
+        r = dict(row)
+        comic = myDB.selectone('SELECT ComicLocation FROM comics WHERE ComicID=?', [r['ComicID']]).fetchone()
+        comic_loc = comic['ComicLocation'] if comic else None
+        loc = variant_covers.resolve_variant_location(
+            r.get('Location'),
+            comic_location=comic_loc,
+            filename=r.get('Filename'),
+        )
+        if not loc or not loc.lower().endswith('.cbz'):
+            logger.warn(
+                '[VARIANT-COVERS] missing file for VariantID=%s (catalogued: %s)'
+                % (VariantID, r.get('Location'))
             )
-            if thumb:
-                myDB.upsert('variant_covers', {'ThumbPath': thumb}, {'VariantID': VariantID})
-        if not thumb or not os.path.isfile(thumb):
-            cherrypy.response.status = 404
-            return b''
+            raise cherrypy.HTTPError(404)
+        if loc != r.get('Location'):
+            myDB.upsert('variant_covers', {'Location': loc}, {'VariantID': VariantID})
         try:
-            with open(thumb, 'rb') as fh:
-                return fh.read()
-        except Exception:
-            cherrypy.response.status = 404
-            return b''
-    variantCoverThumb.exposed = True
+            variant_covers.read_variant_cover_jpeg(loc, variant_id=VariantID, max_width=max_width)
+            _, thumb_path, full_path = variant_covers._variant_cache_paths(VariantID)
+            cache_path = thumb_path if max_width else full_path
+            if not cache_path or not os.path.isfile(cache_path):
+                logger.warn('[VARIANT-COVERS] cache missing for %s at %s' % (VariantID, cache_path))
+                raise cherrypy.HTTPError(404)
+            if max_width:
+                myDB.upsert('variant_covers', {'ThumbPath': thumb_path}, {'VariantID': VariantID})
+            return serve_file(path=cache_path, content_type='image/jpeg')
+        except cherrypy.HTTPError:
+            raise
+        except Exception as e:
+            logger.warn('[VARIANT-COVERS] serve cover failed for %s: %s' % (VariantID, e))
+            raise cherrypy.HTTPError(404)
 
     def loadAnnualDetails(self, ComicID=None, iDisplayStart=0, iDisplayLength=25, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         #logger.info('comicid: %s' % ComicID)

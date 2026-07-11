@@ -87,7 +87,6 @@
 			<li><a href="#tabs-1">Comic Details</a></li>
                         <li><a href="#tabs-2">Edit Settings</a></li>
 			<li><a href="#tabs-3">Bookshelf</a></li>
-			<li><a href="#tabs-4">Variant Covers</a></li>
                 </ul>
 
        <div id="tabs-1">
@@ -459,6 +458,17 @@
                      <label class="bookshelf-size-label" for="bookshelf_size_slider">Cover size:</label>
                      <input type="range" id="bookshelf_size_slider" class="bookshelf-size-slider" min="0" max="100" value="50" title="Adjust cover size" />
                  </div>
+                 <button type="button" id="variant_rescan_btn" class="ui-button ui-widget ui-state-default bookshelf-rescan-btn" title="Scan series folder for variant cover files (≤13MB). Qualified files are moved into a Variants/ subfolder.">Rescan Variants</button>
+                 <span id="variant_scan_status" class="bookshelf-scan-status"></span>
+             </div>
+             <div id="bookshelf_variants_panel" class="bookshelf-variants-panel" style="display:none;">
+                 <div class="bookshelf-variants-panel-header">
+                     <strong id="bookshelf_variants_title">Variant covers</strong>
+                     <button type="button" id="bookshelf_variants_close" class="bookshelf-variants-close" title="Close">&times;</button>
+                 </div>
+                 <div id="bookshelf_variants_grid" class="bookshelf-grid bookshelf-variants-grid"></div>
+                 <p id="bookshelf_variants_loading" class="bookshelf-loading" style="display:none;">Loading variants…</p>
+                 <p id="bookshelf_variants_empty" class="bookshelf-empty" style="display:none;">No variant covers for this issue.</p>
              </div>
              <div id="bookshelf_grid" class="bookshelf-grid"></div>
              <p id="bookshelf_loading" class="bookshelf-loading">Loading…</p>
@@ -472,15 +482,6 @@
                      <p id="bookshelf_lightbox_caption" class="bookshelf-lightbox-caption"></p>
                  </div>
              </div>
-        </div>
-        <div id="tabs-4" class="variant-covers-tab">
-             <div class="bookshelf-toolbar">
-                 <button type="button" id="variant_rescan_btn" class="ui-button ui-widget ui-state-default" title="Scan series folder for variant cover files (≤3MB)">Rescan Variants</button>
-                 <span id="variant_scan_status" style="color:#aaa;margin-left:12px;"></span>
-             </div>
-             <div id="variant_grid" class="bookshelf-grid"></div>
-             <p id="variant_loading" class="bookshelf-loading">Loading…</p>
-             <p id="variant_empty" class="bookshelf-empty" style="display:none;">No variant covers catalogued for this series. Use Rescan Variants after adding cover scans to the folder.</p>
              <div id="variant_lightbox" class="bookshelf-lightbox" role="dialog" aria-modal="true" aria-label="Variant cover preview" tabindex="-1" style="display:none;">
                  <button type="button" class="bookshelf-lightbox-close variant-lightbox-close" aria-label="Close">&times;</button>
                  <button type="button" class="bookshelf-lightbox-prev variant-lightbox-prev" aria-label="Previous">&larr;</button>
@@ -709,6 +710,45 @@
           min-height: auto;
           display: inline;
           vertical-align: middle;
+        }
+        .bookshelf-variants-btn {
+            display: block;
+            margin-top: 6px;
+            padding: 3px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: #ddd;
+            border-radius: 3px;
+        }
+        .bookshelf-variants-btn:hover { background: rgba(255,255,255,0.22); }
+        .bookshelf-rescan-btn { margin-left: 12px; }
+        .bookshelf-scan-status { color: #aaa; margin-left: 8px; font-size: 12px; }
+        .bookshelf-variants-panel {
+            margin: 0 0 16px 0;
+            padding: 12px;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
+        }
+        .bookshelf-variants-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            color: #eee;
+        }
+        .bookshelf-variants-close {
+            background: transparent;
+            border: none;
+            color: #ccc;
+            font-size: 22px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .bookshelf-variants-grid {
+            --bookshelf-cover-min: 100px;
         }
         .bookshelf-loading { color: #aaa; padding: 1em; }
         .bookshelf-empty { color: #888; padding: 2em; }
@@ -1698,6 +1738,20 @@
                     dlLink.append($('<img src="images/download_icon.png" alt="Download" />'));
                     label.append(dlLink);
                 }
+                if (issue.variant_count > 0 && issue.IssueID) {
+                    var variantLabel = issue.variant_count === 1
+                        ? '1 variant'
+                        : issue.variant_count + ' variants';
+                    var varBtn = $('<button type="button" class="bookshelf-variants-btn"></button>')
+                        .text(variantLabel)
+                        .attr('title', 'View alternate cover scans for this issue');
+                    varBtn.on('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openIssueVariantsPanel(issue);
+                    });
+                    label.append(varBtn);
+                }
                 var img = $('<img loading="lazy" alt="' + (issue.IssueName || '').replace(/"/g, '&quot;') + '" />');
                 if (issue.cover_url) {
                     img.attr('src', issue.cover_url);
@@ -1773,10 +1827,12 @@
         function applyBookshelfSize() {
             var s = document.getElementById('bookshelf_size_slider');
             var g = document.getElementById('bookshelf_grid');
+            var vg = document.getElementById('bookshelf_variants_grid');
             if (!s || !g) return;
             var v = parseInt(s.value || 50, 10);
             var minPx = Math.round(80 + (v / 100) * 270);
             g.style.setProperty('--bookshelf-cover-min', minPx + 'px');
+            if (vg) vg.style.setProperty('--bookshelf-cover-min', Math.max(80, minPx - 40) + 'px');
         }
         $(document).ready(function() {
             $(document).on('input change', '#bookshelf_size_slider', applyBookshelfSize);
@@ -1792,102 +1848,7 @@
             $('.bookshelf-lightbox-close').on('click', function() { $('#bookshelf_lightbox').hide(); });
             $('.bookshelf-lightbox-prev').on('click', function(e) { e.stopPropagation(); bookshelfLightboxPrev(); });
             $('.bookshelf-lightbox-next').on('click', function(e) { e.stopPropagation(); bookshelfLightboxNext(); });
-        });
 
-        var variantCache = {};
-        var currentVariantCovers = [];
-        var variantLightboxIndex = 0;
-        function formatBytes(n) {
-            n = parseInt(n, 10);
-            if (!n || isNaN(n)) return '';
-            if (n < 1024) return n + ' B';
-            if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
-            return (n / 1048576).toFixed(2) + ' MB';
-        }
-        function loadVariantCovers(force) {
-            var comicid = retrieve_comicid();
-            var grid = $('#variant_grid');
-            var loading = $('#variant_loading');
-            var empty = $('#variant_empty');
-            if (!comicid) return;
-            if (!force && variantCache[comicid]) {
-                loading.hide();
-                renderVariantGrid(variantCache[comicid]);
-                return;
-            }
-            loading.show();
-            empty.hide();
-            grid.empty();
-            $.ajax({
-                url: 'loadVariantCovers',
-                dataType: 'json',
-                data: { ComicID: comicid },
-                success: function(variants) {
-                    loading.hide();
-                    if (!variants || !variants.length) {
-                        empty.show();
-                        variantCache[comicid] = [];
-                        currentVariantCovers = [];
-                        return;
-                    }
-                    variantCache[comicid] = variants;
-                    renderVariantGrid(variants);
-                },
-                error: function(xhr, err) {
-                    loading.hide();
-                    empty.show().text('Failed to load variant covers.');
-                    console.warn('Variant covers load failed:', xhr.status, err);
-                }
-            });
-        }
-        function renderVariantGrid(variants) {
-            var grid = $('#variant_grid');
-            var empty = $('#variant_empty');
-            grid.empty();
-            currentVariantCovers = variants;
-            if (!variants.length) {
-                empty.show();
-                return;
-            }
-            empty.hide();
-            variants.forEach(function(v, idx) {
-                var card = $('<div class="bookshelf-card" data-index="' + idx + '"></div>');
-                var label = $('<div class="bookshelf-label"></div>');
-                label.append($('<div></div>').text('#' + (v.Issue_Number || '?') + ' – ' + (v.Descriptor || 'variant')));
-                if (v.ComicSize) {
-                    label.append($('<div style="font-size:11px;color:#999;"></div>').text(formatBytes(v.ComicSize)));
-                }
-                card.append(label);
-                var img = $('<img alt="" />');
-                if (v.thumb_url) {
-                    img.attr('src', v.thumb_url);
-                } else {
-                    img.attr('src', 'images/blank.gif');
-                }
-                card.prepend(img);
-                grid.append(card);
-            });
-            grid.off('click', '.bookshelf-card img').on('click', '.bookshelf-card img', function() {
-                var idx = parseInt($(this).closest('.bookshelf-card').attr('data-index'), 10);
-                openVariantLightbox(idx);
-            });
-        }
-        function openVariantLightbox(index) {
-            if (!currentVariantCovers.length) return;
-            variantLightboxIndex = (index + currentVariantCovers.length) % currentVariantCovers.length;
-            var v = currentVariantCovers[variantLightboxIndex];
-            var src = v.thumb_url || $('#variant_grid .bookshelf-card[data-index="' + variantLightboxIndex + '"] img').attr('src');
-            $('#variant_lightbox_img').attr('src', src || 'images/blank.gif');
-            $('#variant_lightbox_caption').text('#' + (v.Issue_Number || '') + ' – ' + (v.Descriptor || '') + (v.Filename ? ' (' + v.Filename + ')' : ''));
-            $('#variant_lightbox').show();
-        }
-        function variantLightboxPrev() {
-            if (currentVariantCovers.length) openVariantLightbox(variantLightboxIndex - 1);
-        }
-        function variantLightboxNext() {
-            if (currentVariantCovers.length) openVariantLightbox(variantLightboxIndex + 1);
-        }
-        $(document).ready(function() {
             $('#variant_rescan_btn').on('click', function() {
                 var comicid = retrieve_comicid();
                 if (!comicid) return;
@@ -1895,14 +1856,17 @@
                 $.getJSON('scanVariantCovers', { ComicID: comicid }, function(data) {
                     if (data && data.success) {
                         $('#variant_scan_status').text('Found ' + data.count + ' variant(s).');
-                        delete variantCache[comicid];
-                        loadVariantCovers(true);
+                        delete bookshelfCache[comicid];
+                        loadBookshelf();
                     } else {
                         $('#variant_scan_status').text('Scan failed.');
                     }
                 }).fail(function() {
                     $('#variant_scan_status').text('Scan failed.');
                 });
+            });
+            $('#bookshelf_variants_close').on('click', function() {
+                $('#bookshelf_variants_panel').hide();
             });
             $('#variant_lightbox').on('click', function(e) {
                 if (e.target === this) $(this).hide();
@@ -1916,6 +1880,89 @@
             $('.variant-lightbox-prev').on('click', function(e) { e.stopPropagation(); variantLightboxPrev(); });
             $('.variant-lightbox-next').on('click', function(e) { e.stopPropagation(); variantLightboxNext(); });
         });
+
+        var currentVariantCovers = [];
+        var variantLightboxIndex = 0;
+        function formatBytes(n) {
+            n = parseInt(n, 10);
+            if (!n || isNaN(n)) return '';
+            if (n < 1024) return n + ' B';
+            if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+            return (n / 1048576).toFixed(2) + ' MB';
+        }
+        function openIssueVariantsPanel(issue) {
+            if (!issue || !issue.IssueID) return;
+            var panel = $('#bookshelf_variants_panel');
+            var grid = $('#bookshelf_variants_grid');
+            var loading = $('#bookshelf_variants_loading');
+            var empty = $('#bookshelf_variants_empty');
+            var title = '#' + (issue.Issue_Number || '?');
+            if (issue.IssueName) title += ' – ' + issue.IssueName;
+            title += ' – Variants';
+            $('#bookshelf_variants_title').text(title);
+            panel.show();
+            grid.empty();
+            empty.hide();
+            loading.show();
+            $('html, body').animate({ scrollTop: panel.offset().top - 80 }, 200);
+            $.ajax({
+                url: 'loadIssueVariants',
+                dataType: 'json',
+                data: { IssueID: issue.IssueID },
+                success: function(variants) {
+                    loading.hide();
+                    if (!variants || !variants.length) {
+                        empty.show();
+                        currentVariantCovers = [];
+                        return;
+                    }
+                    renderIssueVariantsGrid(variants);
+                },
+                error: function() {
+                    loading.hide();
+                    empty.show().text('Failed to load variant covers.');
+                }
+            });
+        }
+        function renderIssueVariantsGrid(variants) {
+            var grid = $('#bookshelf_variants_grid');
+            var empty = $('#bookshelf_variants_empty');
+            grid.empty();
+            currentVariantCovers = variants;
+            empty.hide();
+            variants.forEach(function(v, idx) {
+                var card = $('<div class="bookshelf-card" data-variant-index="' + idx + '"></div>');
+                var label = $('<div class="bookshelf-label"></div>');
+                label.append($('<div></div>').text(v.Descriptor || 'variant'));
+                if (v.ComicSize) {
+                    label.append($('<div style="font-size:11px;color:#999;"></div>').text(formatBytes(v.ComicSize)));
+                }
+                card.append(label);
+                var img = $('<img alt="" />');
+                img.attr('src', v.thumb_url || 'images/blank.gif');
+                card.prepend(img);
+                grid.append(card);
+            });
+            grid.off('click', '.bookshelf-card img').on('click', '.bookshelf-card img', function() {
+                var idx = parseInt($(this).closest('.bookshelf-card').attr('data-variant-index'), 10);
+                openVariantLightbox(idx);
+            });
+        }
+        function openVariantLightbox(index) {
+            if (!currentVariantCovers.length) return;
+            variantLightboxIndex = (index + currentVariantCovers.length) % currentVariantCovers.length;
+            var v = currentVariantCovers[variantLightboxIndex];
+            var src = v.image_url || v.thumb_url || $('#bookshelf_variants_grid .bookshelf-card[data-variant-index="' + variantLightboxIndex + '"] img').attr('src');
+            $('#variant_lightbox_img').attr('src', src || 'images/blank.gif');
+            $('#variant_lightbox_caption').text((v.Descriptor || 'variant') + (v.Filename ? ' (' + v.Filename + ')' : ''));
+            $('#variant_lightbox').show();
+        }
+        function variantLightboxPrev() {
+            if (currentVariantCovers.length) openVariantLightbox(variantLightboxIndex - 1);
+        }
+        function variantLightboxNext() {
+            if (currentVariantCovers.length) openVariantLightbox(variantLightboxIndex + 1);
+        }
 
         function skipped2wanted() {
             var comicid = retrieve_comicid();
@@ -2147,9 +2194,6 @@
                     activate: function(event, ui) {
                         if (ui.newTab.index() === 2) {
                             loadBookshelf();
-                        }
-                        if (ui.newTab.index() === 3) {
-                            loadVariantCovers(false);
                         }
                     }
                 });
@@ -2635,9 +2679,6 @@
                     $('#tabs').tabs('load', index);
                     if (index === 2) {
                         loadBookshelf();
-                    }
-                    if (index === 3) {
-                        loadVariantCovers(false);
                     }
                 });
             });

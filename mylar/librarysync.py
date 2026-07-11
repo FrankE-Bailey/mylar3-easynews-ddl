@@ -56,6 +56,8 @@ def libraryScan(dir=None, append=False, ComicID=None, ComicName=None, cron=None,
     myDB = db.DBConnection()
     #mylar.IMPORT_PARSED_COUNT #used to count what #/totalfiles the filename parser is currently on
     for r, d, f in os.walk(dir):
+        from mylar import variant_covers
+        variant_covers.prune_variant_subdirs(d)
         for files in f:
             mylar.IMPORT_FILES +=1
             if any(files.lower().endswith('.' + x.lower()) for x in extensions):

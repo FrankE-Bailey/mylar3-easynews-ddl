@@ -1,4 +1,6 @@
 import os
+import zipfile
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -159,17 +161,174 @@ def test_scan_series_variant_covers_upserts_and_prunes(tmp_path, monkeypatch):
 
     count = vc.scan_series_variant_covers('12345', paths=[str(comic_dir)])
     assert count == 1
+    assert (comic_dir / vc.VARIANT_SUBFOLDER_NAME / variant_file.name).is_file()
+    assert not variant_file.is_file()
 
     myDB = db.DBConnection()
     rows = myDB.select('SELECT * FROM variant_covers WHERE ComicID=?', ['12345'])
     assert len(rows) == 1
     assert rows[0]['IssueID'] == '4000-99'
     assert 'Jim Lee' in (rows[0]['Descriptor'] or '')
+    assert vc.VARIANT_SUBFOLDER_NAME in rows[0]['Location']
 
-    variant_file.unlink()
+    moved = comic_dir / vc.VARIANT_SUBFOLDER_NAME / variant_file.name
+    moved.unlink()
     vc.scan_series_variant_covers('12345', paths=[str(comic_dir)])
     rows = myDB.select('SELECT * FROM variant_covers WHERE ComicID=?', ['12345'])
     assert len(rows) == 0
+
+
+@pytest.mark.unit
+def test_pick_cover_member_prefers_single_image():
+    assert vc._pick_cover_member(['pages/scan.png']) == 'pages/scan.png'
+
+
+@pytest.mark.unit
+def test_pick_cover_member_prefers_cover_name():
+    members = ['002.jpg', 'cover.jpg', '001.jpg']
+    assert vc._pick_cover_member(members) == 'cover.jpg'
+
+
+@pytest.mark.unit
+def test_read_variant_cover_jpeg_from_cbz(tmp_path, monkeypatch):
+    import mylar
+
+    cbz = tmp_path / 'Batman 001 (Jim Lee Variant).cbz'
+    try:
+        from PIL import Image
+    except ImportError:
+        pytest.skip('PIL not available')
+    buf = BytesIO()
+    Image.new('RGB', (800, 1200), color=(20, 40, 200)).save(buf, format='PNG')
+    png = buf.getvalue()
+    with zipfile.ZipFile(cbz, 'w') as zf:
+        zf.writestr('cover.png', png)
+
+    cache = tmp_path / 'cache'
+    monkeypatch.setattr(mylar, 'CONFIG', type('C', (), {'CACHE_DIR': str(cache)})())
+
+    thumb = vc.read_variant_cover_jpeg(str(cbz), variant_id='abc', max_width=600)
+    assert thumb and thumb[:3] == b'\xff\xd8\xff'
+    full = vc.read_variant_cover_jpeg(str(cbz), variant_id='abc', max_width=None)
+    assert full and full[:3] == b'\xff\xd8\xff'
+    assert len(full) >= len(thumb)
+
+
+@pytest.mark.unit
+def test_resolve_variant_location_finds_variants_subfolder(tmp_path):
+    series = tmp_path / 'Batman (2023)'
+    series.mkdir()
+    variants = series / vc.VARIANT_SUBFOLDER_NAME
+    variants.mkdir()
+    cbz = variants / 'Batman 001 (Jim Lee Variant).cbz'
+    cbz.write_bytes(b'PK')
+    stale = str(series / cbz.name)
+    resolved = vc.resolve_variant_location(stale, comic_location=str(series), filename=cbz.name)
+    assert resolved == str(cbz)
+
+
+@pytest.mark.unit
+def test_variant_cover_cache_url(tmp_path, monkeypatch):
+    import mylar
+
+    cache_root = tmp_path / 'cache'
+    thumb = cache_root / 'variant_covers' / 'abc_thumb.jpg'
+    thumb.parent.mkdir(parents=True)
+    thumb.write_bytes(b'\xff\xd8\xff')
+    monkeypatch.setattr(mylar, 'CONFIG', type('C', (), {'CACHE_DIR': str(cache_root)})())
+    assert vc.variant_cover_cache_url(str(thumb)) == 'cache/variant_covers/abc_thumb.jpg'
+
+
+@pytest.mark.unit
+def test_extract_issue_number_from_supergirl_filenames():
+    variant = (
+        'Supergirl - Woman of Tomorrow 001 (2021) (Blank Variant) '
+        '(Digital) (MikeNY76-Empire).cbz'
+    )
+    main = 'Supergirl - Woman of Tomorrow 01 (of 08) (2021) (digital).cbr'
+    assert vc._extract_issue_number_from_filename(variant) == '001'
+    assert vc._extract_issue_number_from_filename(main) == '01'
+
+
+@pytest.mark.unit
+def test_normalize_issue_label_strips_leading_zeros():
+    assert vc._normalize_issue_label('001') == '1'
+    assert vc._normalize_issue_label('01') == '1'
+    assert vc._normalize_issue_label('005') == '5'
+
+
+@pytest.mark.unit
+def test_match_issue_id_ignores_filename_year(tmp_path, monkeypatch):
+    import mylar
+    from mylar import db
+
+    db_path = tmp_path / 'mylar.db'
+    conn = __import__('sqlite3').connect(str(db_path))
+    conn.execute(
+        'CREATE TABLE issues (IssueID TEXT, ComicID TEXT, Issue_Number TEXT, Int_IssueNumber INT)'
+    )
+    conn.execute("INSERT INTO issues VALUES ('4000-5', '12345', '5', 5000)")
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(mylar, 'DATA_DIR', str(tmp_path))
+    monkeypatch.setattr(
+        vc,
+        '_int_issue_number',
+        lambda n: {'005': 5000, '5': 5000, '01': 1000}.get(str(n).strip()),
+    )
+
+    myDB = db.DBConnection()
+    issue_id, issue_number = vc._match_issue_id(myDB, '12345', '005')
+    assert issue_id == '4000-5'
+    assert issue_number == '5'
+
+
+@pytest.mark.unit
+def test_variant_count_by_comic_groups_by_issue(tmp_path, monkeypatch):
+    import mylar
+    from mylar import db
+
+    db_path = tmp_path / 'test.db'
+    conn = __import__('sqlite3').connect(str(db_path))
+    conn.execute(
+        'CREATE TABLE variant_covers (VariantID TEXT, ComicID TEXT, IssueID TEXT, '
+        'Issue_Number TEXT, Descriptor TEXT, Filename TEXT, Location TEXT, '
+        'ComicSize TEXT, CoverOnly INTEGER, ThumbPath TEXT, DateAdded TEXT, DateUpdated TEXT)'
+    )
+    conn.execute(
+        "INSERT INTO variant_covers VALUES ('v1', '99', '4000-1', '1', 'A', 'f1.cbz', '/a', '0', 1, NULL, '', '')"
+    )
+    conn.execute(
+        "INSERT INTO variant_covers VALUES ('v2', '99', '4000-1', '1', 'B', 'f2.cbz', '/b', '0', 1, NULL, '', '')"
+    )
+    conn.execute(
+        "INSERT INTO variant_covers VALUES ('v3', '99', NULL, '2', 'C', 'f3.cbz', '/c', '0', 1, NULL, '', '')"
+    )
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(mylar, 'DB_FILE', str(db_path))
+    counts = vc.variant_count_by_comic('99')
+    assert counts == {'4000-1': 2}
+
+
+@pytest.mark.unit
+def test_relocate_variant_file_moves_into_subfolder(tmp_path):
+    series = tmp_path / 'Elseworlds Finest (1997)'
+    series.mkdir()
+    src = series / 'Elseworlds Finest 01 (1997) (Variant Cover) (digital).cbz'
+    src.write_bytes(b'x')
+    dest = vc.relocate_variant_file(str(src), str(series))
+    assert dest == str(series / vc.VARIANT_SUBFOLDER_NAME / src.name)
+    assert os.path.isfile(dest)
+    assert not src.is_file()
+    assert vc.relocate_variant_file(dest, str(series)) == dest
+
+
+@pytest.mark.unit
+def test_prune_variant_subdirs_skips_variants_folder():
+    subs = ['Variants', 'Annuals', 'variants']
+    vc.prune_variant_subdirs(subs)
+    assert subs == ['Annuals']
 
 
 @pytest.mark.unit
